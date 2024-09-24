@@ -1,0 +1,171 @@
+---
+format: 
+  pdf:
+    fig-pos: "H"
+    tbl-cap-location: bottom
+lang: es
+echo: FALSE
+message: FALSE
+warning: FALSE
+geometry:
+  - top= 25mm
+  - left= 20mm
+  - right = 20mm
+  - bottom = 25mm
+  - heightrounded
+header-includes:
+  - \usepackage{ragged2e}
+  - \usepackage{hyperref}
+  - \usepackage{float}
+  - \floatplacement{table}{H}
+---
+
+::: {.center data-latex=""}
+
+\vspace{3cm}
+
+```{r logo facultad, echo=F, include = T, out.width= "60%"}
+knitr::include_graphics("logounr.png")
+```
+
+\pagenumbering{gobble}
+
+\vspace{5cm}
+
+\Large
+**LICENCIATURA EN ESTADÍSTICA**
+
+\vspace{1cm}
+
+\Large
+**Trabajo Práctico**
+
+
+\vspace{0.3cm}
+\large
+
+*"Estudio de los retornos mensuales del **SPY 500**"*
+
+\vspace{8cm}
+
+\large
+
+**Autor: Franco Santini**
+
+**Docentes: Fernanda Mendez - Facundo Sigal**
+
+**2024**
+\normalsize
+\newpage
+\hypersetup{linkcolor = black}
+\tableofcontents
+
+
+\newpage
+\pagenumbering{arabic}
+
+:::
+
+\newpage
+
+```{r librerias}
+library(dplyr) # Manejo de datos
+library(lubridate) # Manejo de fechas
+library(ggplot2) # Gráficos
+```
+
+```{r carga de datos}
+datos <- read.csv("Datos/SPY ETF Stock Price History.csv", sep = ",")
+datos_trabajo <- datos[1:105,]
+datos_trabajo$Date <- mdy(datos_trabajo$Date)
+
+datos_trabajo |> 
+  ggplot() +
+  aes(x = Date, y = Price) +
+  geom_line() +
+  theme_bw()
+```
+Formula del calculo del retorno mensual = $\frac{Precio_{mes \ actual} - Precio_{mes \ pasado}}{Precio_{mes \ pasado}} \cdot 100$. Si el retorno es positivo indica una ganancia, si el retorno es negativo indica una pérdida
+
+
+```{r calculo del retorno}
+retorno <- NULL
+
+for(i in 1:nrow(datos)-1){
+  retorno[i] <- ((datos$Price[i]/datos$Price[i+1]) - 1)*100
+}
+
+datos_trabajo$Retorno <- retorno |> round(4)
+```
+
+```{r conjunto de datos}
+# Division en conjunto de entrenamiento y conjunto de prueba
+datos_entrenamiento <- datos_trabajo[10:105,]
+datos_prueba <- datos_trabajo[1:9,]
+```
+
+## Analisis exploratorio
+
+```{r grafico del retorno}
+datos_trabajo |> 
+  ggplot() +
+  aes(x = Date, y = Retorno) +
+  geom_line() +
+  geom_point(size = 1, color = "firebrick") +
+  labs(x = "Fecha", y = "Retorno mensual (%)") +
+  theme_bw()
+```
+
+```{r graficos estacionales}
+datos_trabajo |> 
+  mutate(anio = factor(year(Date)),
+         mes = factor(month(Date))) |> 
+  ggplot() +
+  aes(x = mes, y = Retorno, group = anio, color = anio) +
+  geom_line() +
+  labs(x = "Mes", y = "Retorno mensual (%)") +
+  theme_bw()
+```
+
+En este gráfico no se observa un comportamiento estacional de la serie
+
+```{r graficos estacionales subseries}
+tabla <- datos_trabajo |> 
+  mutate(mes = factor(month(Date)),
+         anio = factor(year(Date))) |> 
+  group_by(mes) |> 
+  summarise(media = mean(Retorno),
+            anio,
+            Retorno)
+
+tabla |> 
+  ggplot() +
+  aes(x = anio, y = Retorno, group = mes) +
+  geom_line() +
+  geom_hline(aes(yintercept = media), color = "blue") +
+  facet_wrap(~mes) +
+  labs(x = "Fecha", y = "Retorno mensual (%)") +
+  theme_bw()
+```
+
+## Analisis de dispersion
+
+```{r boxplot por año}
+datos_trabajo |> 
+  mutate(anio = factor(year(Date))) |> 
+  filter(anio != 2024) |> 
+  ggplot() +
+  aes(x = anio, y = Retorno) +
+  geom_boxplot(fill = "firebrick") +
+  theme_bw()
+
+
+```
+
+Parece haber variabilidad distintas en los años. Por lo que se podría aplicar las transformaciones de Box-Cox
+
+```{r transformaciones box-cox}
+
+```
+
+
