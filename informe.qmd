@@ -72,7 +72,10 @@ knitr::include_graphics("logounr.png")
 library(dplyr) # Manejo de datos
 library(lubridate) # Manejo de fechas
 library(ggplot2) # Gráficos
+library(MASS) # Transformación Box-Cox
+library(readxl) # Leer archivos excel
 ```
+# Base datos 1 (Retornos mensuales - SPY 500)
 
 ```{r carga de datos}
 datos <- read.csv("Datos/SPY ETF Stock Price History.csv", sep = ",")
@@ -148,6 +151,49 @@ tabla |>
   theme_bw()
 ```
 
+Gráfico de autocorrelación
+
+```{r grafico autocorrelacion}
+autocorrelacion <- acf(datos_trabajo$Retorno, lag.max = 104, plot = F)
+datos_autocorrelacion1 <- data.frame(
+  acf = autocorrelacion$acf,
+  lag = autocorrelacion$lag
+)
+
+alpha <- 0.95
+conf.lims1 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_2$n.used)
+
+
+datos_autocorrelacion1 |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1, color = "firebrick") +
+  geom_hline(yintercept=conf.lims1, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  theme_bw()
+```
+
+```{r grafico de autocorrelacion parcial}
+pautocorrelacion <- pacf(datos_trabajo$Retorno, lag.max = 104, plot = F)
+datos_pautocorrelacion1 <- data.frame(
+  pacf = pautocorrelacion$acf,
+  lag = pautocorrelacion$lag
+)
+
+alpha <- 0.95
+conf.lims3 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_2$n.used)
+
+datos_pautocorrelacion1 |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1, color = "firebrick") +
+  geom_hline(yintercept=conf.lims3, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  theme_bw()
+```
+
 ## Analisis de dispersion
 
 ```{r boxplot por año}
@@ -164,8 +210,121 @@ datos_trabajo |>
 
 Parece haber variabilidad distintas en los años. Por lo que se podría aplicar las transformaciones de Box-Cox
 
-```{r transformaciones box-cox}
+# Base datos 2 (Unidades vendidas en paletas - Empresa de logística)
+
+```{r carga datos 2}
+datos2 <- read_excel("Datos/empresa_casilda.xlsx")
+datos_trabajo_2 <- datos2
+
+datos_trabajo_2$`Año/Mes` <- ym(datos_trabajo_2$`Año/Mes`) # Pasamos a formato fecha
+datos_trabajo_2$Año <- factor(datos_trabajo_2$Año)
+```
+
+## Analisis descriptivo
+
+```{r grafico serie 2}
+datos_empresa_1 <- datos_trabajo_2 |> 
+  group_by(`Año/Mes`, Distribuidora) |> 
+  filter(Distribuidora == "EMPRESA 1") |> 
+  summarise(
+    Cantidad_total_HL = sum(`Cantidad Total en HL`)
+  ) |> 
+  ungroup()
+
+datos_empresa_1 |> 
+  ggplot() +
+  aes(x = `Año/Mes`, y = Cantidad_total_HL) +
+  geom_line() +
+  geom_point(size = 1, color = "firebrick") +
+  labs(x = "Fecha", y = "Cantidad total vendida (HL)") +
+  theme_bw()
+```
+
+Parece haber un comportamiento estacional
+
+```{r grafico estacional 2}
+datos_empresa_1 |> 
+  mutate(anio = factor(year(`Año/Mes`)),
+         mes = factor(month(`Año/Mes`))) |> 
+  ggplot() +
+  aes(x = mes, y = Cantidad_total_HL, group = anio, color = anio) +
+  geom_line() +
+  theme_bw()
+```
+
+```{r graficos estacionales subseries 2}
+tabla_2 <- datos_empresa_1 |> 
+  mutate(mes = factor(month(`Año/Mes`)),
+         anio = factor(year(`Año/Mes`))) |> 
+  group_by(mes) |> 
+  summarise(media = mean(Cantidad_total_HL),
+            anio,
+            Cantidad_total_HL)
+
+tabla_2 |> 
+  ggplot() +
+  aes(x = anio, y = Cantidad_total_HL, group = mes) +
+  geom_line() +
+  geom_hline(aes(yintercept = media), color = "blue") +
+  facet_wrap(~mes) +
+  theme_bw()
+```
+
+Gráfico de autocorrelación
+
+```{r grafico autocorrelacion 2}
+autocorrelacion_2 <- acf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
+datos_autocorrelacion <- data.frame(
+  acf = autocorrelacion_2$acf,
+  lag = autocorrelacion_2$lag
+)
+
+alpha <- 0.95
+conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_2$n.used)
+
+
+datos_autocorrelacion |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1, color = "firebrick") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  theme_bw()
+```
+
+```{r grafico de autocorrelacion parcial 2}
+pautocorrelacion_2 <- pacf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
+datos_pautocorrelacion <- data.frame(
+  pacf = pautocorrelacion_2$acf,
+  lag = pautocorrelacion_2$lag
+)
+
+alpha <- 0.95
+conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_2$n.used)
+
+datos_pautocorrelacion |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1, color = "firebrick") +
+  geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  theme_bw()
+```
+
+## Analisis de dispersion
+
+```{r boxplot por año}
+datos_empresa_1 |> 
+  mutate(anio = factor(year(`Año/Mes`))) |> 
+  filter(anio != 2024) |> 
+  ggplot() +
+  aes(x = anio, y = Cantidad_total_HL) +
+  geom_boxplot(fill = "firebrick") +
+  theme_bw()
+
 
 ```
 
-
+Parece haber variabilidad constante, un poco más alta en el año 2020.
