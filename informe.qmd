@@ -161,7 +161,7 @@ datos_autocorrelacion1 <- data.frame(
 )
 
 alpha <- 0.95
-conf.lims1 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_2$n.used)
+conf.lims1 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion$n.used)
 
 
 datos_autocorrelacion1 |> 
@@ -182,7 +182,7 @@ datos_pautocorrelacion1 <- data.frame(
 )
 
 alpha <- 0.95
-conf.lims3 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_2$n.used)
+conf.lims3 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion$n.used)
 
 datos_pautocorrelacion1 |> 
   ggplot() +
@@ -315,7 +315,7 @@ datos_pautocorrelacion |>
 
 ## Analisis de dispersion
 
-```{r boxplot por año}
+```{r boxplot por año 2}
 datos_empresa_1 |> 
   mutate(anio = factor(year(`Año/Mes`))) |> 
   filter(anio != 2024) |> 
