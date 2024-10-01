@@ -210,7 +210,7 @@ datos_trabajo |>
 
 Parece haber variabilidad distintas en los años. Por lo que se podría aplicar las transformaciones de Box-Cox
 
-# Base datos 2 (Unidades vendidas en paletas - Empresa de logística)
+# Base datos 2 (Unidades vendidas en HL - Empresa de logística)
 
 ```{r carga datos 2}
 datos2 <- read_excel("Datos/empresa_casilda.xlsx")
