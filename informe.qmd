@@ -44,7 +44,7 @@ knitr::include_graphics("logounr.png")
 \vspace{0.3cm}
 \large
 
-*"Estudio de los retornos mensuales del **SPY 500**"*
+*"Evaluación de las Tendencias de Ventas Mensuales en una Empresa de Logística Mediante Series de Tiempo"*
 
 \vspace{8cm}
 
@@ -75,142 +75,12 @@ library(ggplot2) # Gráficos
 library(MASS) # Transformación Box-Cox
 library(readxl) # Leer archivos excel
 ```
-# Base datos 1 (Retornos mensuales - SPY 500)
 
-```{r carga de datos}
-datos <- read.csv("Datos/SPY ETF Stock Price History.csv", sep = ",")
-datos_trabajo <- datos[1:105,]
-datos_trabajo$Date <- mdy(datos_trabajo$Date)
+# Introducción
 
-datos_trabajo |> 
-  ggplot() +
-  aes(x = Date, y = Price) +
-  geom_line() +
-  theme_bw()
-```
-Formula del calculo del retorno mensual = $\frac{Precio_{mes \ actual} - Precio_{mes \ pasado}}{Precio_{mes \ pasado}} \cdot 100$. Si el retorno es positivo indica una ganancia, si el retorno es negativo indica una pérdida
+Narrar una breve introducción acerca del problema en estudio|
 
-
-```{r calculo del retorno}
-retorno <- NULL
-
-for(i in 1:nrow(datos)-1){
-  retorno[i] <- ((datos$Price[i]/datos$Price[i+1]) - 1)*100
-}
-
-datos_trabajo$Retorno <- retorno |> round(4)
-```
-
-```{r conjunto de datos}
-# Division en conjunto de entrenamiento y conjunto de prueba
-datos_entrenamiento <- datos_trabajo[10:105,]
-datos_prueba <- datos_trabajo[1:9,]
-```
-
-## Analisis exploratorio
-
-```{r grafico del retorno}
-datos_trabajo |> 
-  ggplot() +
-  aes(x = Date, y = Retorno) +
-  geom_line() +
-  geom_point(size = 1, color = "firebrick") +
-  labs(x = "Fecha", y = "Retorno mensual (%)") +
-  theme_bw()
-```
-
-```{r graficos estacionales}
-datos_trabajo |> 
-  mutate(anio = factor(year(Date)),
-         mes = factor(month(Date))) |> 
-  ggplot() +
-  aes(x = mes, y = Retorno, group = anio, color = anio) +
-  geom_line() +
-  labs(x = "Mes", y = "Retorno mensual (%)") +
-  theme_bw()
-```
-
-En este gráfico no se observa un comportamiento estacional de la serie
-
-```{r graficos estacionales subseries}
-tabla <- datos_trabajo |> 
-  mutate(mes = factor(month(Date)),
-         anio = factor(year(Date))) |> 
-  group_by(mes) |> 
-  summarise(media = mean(Retorno),
-            anio,
-            Retorno)
-
-tabla |> 
-  ggplot() +
-  aes(x = anio, y = Retorno, group = mes) +
-  geom_line() +
-  geom_hline(aes(yintercept = media), color = "blue") +
-  facet_wrap(~mes) +
-  labs(x = "Fecha", y = "Retorno mensual (%)") +
-  theme_bw()
-```
-
-Gráfico de autocorrelación
-
-```{r grafico autocorrelacion}
-autocorrelacion <- acf(datos_trabajo$Retorno, lag.max = 104, plot = F)
-datos_autocorrelacion1 <- data.frame(
-  acf = autocorrelacion$acf,
-  lag = autocorrelacion$lag
-)
-
-alpha <- 0.95
-conf.lims1 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion$n.used)
-
-
-datos_autocorrelacion1 |> 
-  ggplot() +
-  aes(x = lag, y = acf) +
-  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
-  geom_point(size = 1, color = "firebrick") +
-  geom_hline(yintercept=conf.lims1, lty=2, col='blue') +
-  geom_hline(yintercept = 0) +
-  theme_bw()
-```
-
-```{r grafico de autocorrelacion parcial}
-pautocorrelacion <- pacf(datos_trabajo$Retorno, lag.max = 104, plot = F)
-datos_pautocorrelacion1 <- data.frame(
-  pacf = pautocorrelacion$acf,
-  lag = pautocorrelacion$lag
-)
-
-alpha <- 0.95
-conf.lims3 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion$n.used)
-
-datos_pautocorrelacion1 |> 
-  ggplot() +
-  aes(x = lag, y = pacf) +
-  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
-  geom_point(size = 1, color = "firebrick") +
-  geom_hline(yintercept=conf.lims3, lty=2, col='blue') +
-  geom_hline(yintercept = 0) +
-  theme_bw()
-```
-
-## Analisis de dispersion
-
-```{r boxplot por año}
-datos_trabajo |> 
-  mutate(anio = factor(year(Date))) |> 
-  filter(anio != 2024) |> 
-  ggplot() +
-  aes(x = anio, y = Retorno) +
-  geom_boxplot(fill = "firebrick") +
-  theme_bw()
-
-
-```
-
-Parece haber variabilidad distintas en los años. Por lo que se podría aplicar las transformaciones de Box-Cox
-
-# Base datos 2 (Unidades vendidas en HL - Empresa de logística)
+## Análisis descriptivo
 
 ```{r carga datos 2}
 datos2 <- read_excel("Datos/empresa_casilda.xlsx")
@@ -220,7 +90,6 @@ datos_trabajo_2$`Año/Mes` <- ym(datos_trabajo_2$`Año/Mes`) # Pasamos a formato
 datos_trabajo_2$Año <- factor(datos_trabajo_2$Año)
 ```
 
-## Analisis descriptivo
 
 ```{r grafico serie 2}
 datos_empresa_1 <- datos_trabajo_2 |> 
@@ -235,8 +104,8 @@ datos_empresa_1 |>
   ggplot() +
   aes(x = `Año/Mes`, y = Cantidad_total_HL) +
   geom_line() +
-  geom_point(size = 1, color = "firebrick") +
-  labs(x = "Fecha", y = "Cantidad total vendida (HL)") +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  labs(x = "Fecha", y = "Cantidad total vendido (HL)") +
   theme_bw()
 ```
 
@@ -249,12 +118,13 @@ datos_empresa_1 |>
   ggplot() +
   aes(x = mes, y = Cantidad_total_HL, group = anio, color = anio) +
   geom_line() +
+  labs(x = "Mes", y = "Cantidad total vendido (HL)", color = "Año") +
   theme_bw()
 ```
 
 ```{r graficos estacionales subseries 2}
 tabla_2 <- datos_empresa_1 |> 
-  mutate(mes = factor(month(`Año/Mes`)),
+  mutate(mes = factor(month(`Año/Mes`), labels = c("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")),
          anio = factor(year(`Año/Mes`))) |> 
   group_by(mes) |> 
   summarise(media = mean(Cantidad_total_HL),
@@ -268,6 +138,8 @@ tabla_2 |>
   geom_hline(aes(yintercept = media), color = "blue") +
   facet_wrap(~mes) +
   theme_bw()
+
+# Veo que hago con este gráfico, capaz lo saco.
 ```
 
 Gráfico de autocorrelación
@@ -287,9 +159,10 @@ datos_autocorrelacion |>
   ggplot() +
   aes(x = lag, y = acf) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
-  geom_point(size = 1, color = "firebrick") +
+  geom_point(size = 1.5, color = "dodgerblue2") +
   geom_hline(yintercept=conf.lims, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
+  labs(x = "Rezago", y = expression(rho[k])) +
   theme_bw()
 ```
 
@@ -307,13 +180,14 @@ datos_pautocorrelacion |>
   ggplot() +
   aes(x = lag, y = pacf) +
   geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
-  geom_point(size = 1, color = "firebrick") +
+  geom_point(size = 1.5, color = "dodgerblue2") +
   geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
+  labs(y = expression(phi[kk]), x = "Rezago") +
   theme_bw()
 ```
 
-## Analisis de dispersion
+### Analisis de dispersion
 
 ```{r boxplot por año 2}
 datos_empresa_1 |> 
@@ -321,10 +195,29 @@ datos_empresa_1 |>
   filter(anio != 2024) |> 
   ggplot() +
   aes(x = anio, y = Cantidad_total_HL) +
-  geom_boxplot(fill = "firebrick") +
+  geom_boxplot(fill = "dodgerblue2") +
+  labs(x = "Año", y = "Cantidad total vendido (HL)") +
   theme_bw()
 
 
 ```
 
 Parece haber variabilidad constante, un poco más alta en el año 2020.
+
+```{r transformacion box-cox}
+bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
+
+# Grafico de la transformacion box cox
+data.frame(
+  x = bc_transf$x,
+  y = bc_transf$y
+) |> 
+  ggplot() +
+  aes(x = x, y = y) +
+  geom_line() +
+  geom_segment(x = bc_transf$x[which.max(bc_transf$y)], xend = bc_transf$x[which.max(bc_transf$y)], y = -76, yend = bc_transf$y[bc_transf$x == bc_transf$x[which.max(bc_transf$y)]], lty = 2) +
+  labs(x = expression(lambda), y = "Log-verosimilitud") +
+  theme_bw()
+```
+
+
