@@ -44,7 +44,11 @@ knitr::include_graphics("logounr.png")
 \vspace{0.3cm}
 \large
 
-*"Evaluación de las Tendencias de Ventas Mensuales en una Empresa de Logística Mediante Series de Tiempo"*
+*"Evaluación de las Tendencias de Ventas Mensuales en una Empresa de Logística*
+
+\vspace{0.1cm}
+
+*Mediante Series de Tiempo"*
 
 \vspace{8cm}
 
@@ -105,7 +109,9 @@ datos_empresa_1 |>
   aes(x = `Año/Mes`, y = Cantidad_total_HL) +
   geom_line() +
   geom_point(size = 1.5, color = "dodgerblue2") +
-  labs(x = "Fecha", y = "Cantidad total vendido (HL)") +
+  scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Cantidad total vendida (HL)") +
   theme_bw()
 ```
 
@@ -115,31 +121,13 @@ Parece haber un comportamiento estacional
 datos_empresa_1 |> 
   mutate(anio = factor(year(`Año/Mes`)),
          mes = factor(month(`Año/Mes`))) |> 
+  filter(anio != 2024) |> 
   ggplot() +
   aes(x = mes, y = Cantidad_total_HL, group = anio, color = anio) +
   geom_line() +
-  labs(x = "Mes", y = "Cantidad total vendido (HL)", color = "Año") +
+  scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
+  labs(x = "Mes", y = "Cantidad total vendida (HL)", color = "Año") +
   theme_bw()
-```
-
-```{r graficos estacionales subseries 2}
-tabla_2 <- datos_empresa_1 |> 
-  mutate(mes = factor(month(`Año/Mes`), labels = c("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")),
-         anio = factor(year(`Año/Mes`))) |> 
-  group_by(mes) |> 
-  summarise(media = mean(Cantidad_total_HL),
-            anio,
-            Cantidad_total_HL)
-
-tabla_2 |> 
-  ggplot() +
-  aes(x = anio, y = Cantidad_total_HL, group = mes) +
-  geom_line() +
-  geom_hline(aes(yintercept = media), color = "blue") +
-  facet_wrap(~mes) +
-  theme_bw()
-
-# Veo que hago con este gráfico, capaz lo saco.
 ```
 
 Gráfico de autocorrelación
@@ -162,6 +150,7 @@ datos_autocorrelacion |>
   geom_point(size = 1.5, color = "dodgerblue2") +
   geom_hline(yintercept=conf.lims, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
   labs(x = "Rezago", y = expression(rho[k])) +
   theme_bw()
 ```
@@ -183,6 +172,7 @@ datos_pautocorrelacion |>
   geom_point(size = 1.5, color = "dodgerblue2") +
   geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
   labs(y = expression(phi[kk]), x = "Rezago") +
   theme_bw()
 ```
@@ -196,13 +186,16 @@ datos_empresa_1 |>
   ggplot() +
   aes(x = anio, y = Cantidad_total_HL) +
   geom_boxplot(fill = "dodgerblue2") +
-  labs(x = "Año", y = "Cantidad total vendido (HL)") +
+  scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
+  labs(x = "Año", y = "Cantidad total vendida (HL)") +
   theme_bw()
 
 
 ```
 
 Parece haber variabilidad constante, un poco más alta en el año 2020.
+
+## Transformación de la serie
 
 ```{r transformacion box-cox}
 bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
@@ -216,8 +209,156 @@ data.frame(
   aes(x = x, y = y) +
   geom_line() +
   geom_segment(x = bc_transf$x[which.max(bc_transf$y)], xend = bc_transf$x[which.max(bc_transf$y)], y = -76, yend = bc_transf$y[bc_transf$x == bc_transf$x[which.max(bc_transf$y)]], lty = 2) +
+  scale_x_continuous(breaks = seq(-2, 2, 0.5)) +
   labs(x = expression(lambda), y = "Log-verosimilitud") +
   theme_bw()
 ```
+
+Otro análisis que sería propicio de realizar, seria calcular el Coeficiente de Variación, bajo distintas
+transformaciones de Box-Cox, con el fin de poder evaluar si una transformación de potencia seria
+propicia para nuestra serie.
+
+```{r transformacion box-cox 2}
+# data.frame(
+#   lambda = bc_transf$x,
+#   y = bc_transf$y
+# ) |> 
+#   filter(lambda %in% c(-2, -1, -0.5, 0, 0.5, 1, 2))
+# Con esto solo aplicamos las transformaciones 
+# lambda = 2 implica y^2
+# lambda = 1 implica y (no se transforma)
+# lambda = 0.5 implica sqrt(y)
+# lambda = 0 implica ln(y)
+# lambda = -0.5 implica 1/sqrt(y)
+# lambda = -1 implica 1/y
+# lambda = -2 implica 1/y^2
+
+y_lambda2 <- datos_empresa_1$Cantidad_total_HL^2
+y_lambda05 <- sqrt(datos_empresa_1$Cantidad_total_HL)
+y_lambda0 <- log(datos_empresa_1$Cantidad_total_HL)
+y_lambda.05 <- 1/sqrt(datos_empresa_1$Cantidad_total_HL)
+y_lambda.1 <- 1/datos_empresa_1$Cantidad_total_HL
+y_lambda.2 <- 1/(datos_empresa_1$Cantidad_total_HL^2)
+
+bc <- data.frame(
+  lambda = c(-2, -1, -0.5, 0, 0.5, 1, 2),
+  Coeficiente_de_variacion = c(sd(y_lambda.2)/mean(y_lambda.2), sd(y_lambda.1)/mean(y_lambda.1), sd(y_lambda.05)/mean(y_lambda.05), sd(y_lambda0)/mean(y_lambda0), sd(y_lambda05)/mean(y_lambda05), sd(datos_empresa_1$Cantidad_total_HL)/mean(datos_empresa_1$Cantidad_total_HL), sd(y_lambda2)/mean(y_lambda2))
+  )
+
+kableExtra::kable(bc, digits = 4)
+```
+
+Observando la tabla, es apropiado aplicar la transformacion $y^{(\lambda)} = ln(y)$.
+
+### Análisis descriptivo de la serie transformada
+
+```{r datos transformados}
+datos_empresa_transformados <- datos_empresa_1 |> 
+  mutate(ln_y = log(datos_empresa_1$Cantidad_total_HL),
+         anio = factor(year(`Año/Mes`)),
+         mes = factor(month(`Año/Mes`)))
+```
+
+
+```{r descriptivo serie transformada}
+datos_empresa_transformados |> 
+  ggplot() +
+  aes(x = `Año/Mes`, y = ln_y) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+```
+```{r descriptivo serie transformada 2}
+datos_empresa_transformados |>
+  filter(anio != 2024) |> 
+  ggplot() +
+  aes(x = mes, y = ln_y, group = anio, color = anio) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
+  labs(x = "Mes", y = "Log. natural de la cantidad total vendida (HL)", color = "Año") +
+  theme_bw()
+```
+
+```{r grafico de la fac serie transformada}
+autocorrelacion_transf <- acf(datos_empresa_transformados$ln_y, lag.max = 80, plot = F)
+datos_autocorrelacion_transf <- data.frame(
+  acf = autocorrelacion_transf$acf,
+  lag = autocorrelacion_transf$lag
+)
+
+alpha <- 0.95
+conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_transf$n.used)
+
+
+datos_autocorrelacion_transf |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
+```
+
+```{r grafico de la facp serie transformada}
+pautocorrelacion_trans <- pacf(datos_empresa_transformados$ln_y, lag.max = 80, plot = F)
+datos_pautocorrelacion_trans <- data.frame(
+  pacf = pautocorrelacion_trans$acf,
+  lag = pautocorrelacion_trans$lag
+)
+
+alpha <- 0.95
+conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_trans$n.used)
+
+datos_pautocorrelacion_trans |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(y = expression(phi[kk]), x = "Rezago") +
+  theme_bw()
+```
+
+```{r descriptivo serie transformada 3}
+datos_empresa_transformados |> 
+  filter(anio != 2024) |> 
+  ggplot() +
+  aes(x = anio, y = ln_y) +
+  geom_boxplot(fill = "dodgerblue2") +
+  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
+  labs(x = "Año", y = "Log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+```
+
+Por último, hacemos el análisis de tendencia de la serie para ver si hay alguna tendencia alrededor de la media
+
+```{r tendencia de la serie transformada}
+tabla_promedios <- datos_empresa_transformados |> 
+  group_by(anio) |> 
+  summarise(media_anio = mean(ln_y)) |> 
+  ungroup()
+
+media_gral <- datos_empresa_transformados |> 
+  filter(anio != 2024) |> 
+  summarise(media = mean(ln_y))
+
+tabla_promedios |> 
+  filter(anio != 2024) |> 
+  ggplot() +
+  geom_line(aes(x = anio, y = media_anio, group = 1)) +
+  geom_point(aes(x = anio, y = media_anio)) +
+  geom_hline(yintercept = media_gral$media, lty = 2) +
+  labs(x = "Año", y = "Promedio del log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+```
+
 
 
