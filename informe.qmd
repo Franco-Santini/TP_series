@@ -2,7 +2,9 @@
 format: 
   pdf:
     fig-pos: "H"
-    tbl-cap-location: bottom
+    tbl-pos: "H"
+    fig-cap-location: top
+    tbl-cap-location: top
 lang: es
 echo: FALSE
 message: FALSE
@@ -78,11 +80,18 @@ library(lubridate) # Manejo de fechas
 library(ggplot2) # Gráficos
 library(MASS) # Transformación Box-Cox
 library(readxl) # Leer archivos excel
+library(fpp3) # Paquete del libro fpp3
+library(kableExtra) # Tablas
+library(forecast) # Pronosticos
 ```
 
 # Introducción
 
-Narrar una breve introducción acerca del problema en estudio|
+ En este trabajo se busca estudiar las unidades vendidas en Hectolitro^[Unidad de volúmen equivalente a 100 litros.] (HL) de una importante empresa de logística en la ciudad de Casilda, Santa Fe. El estudio se realiza con 80 observaciones, medidas mensualmente en el período (01/01/2018 - 31/08/2024).
+ 
+ Cabe aclarar que en el período de estudio, atravesamos un evento muy catastrófico en todas las áreas, particularmente en el sector de logística, la pandemia del COVID-19. Al afectar principalmente a las personas, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia de COVID-19. Debido a esta medida, a fines de marzo del 2020 - principios de abril del 2020, el sector de logística fue afectado y en general se produjo una caída en las ventas con respecto al año anterior.
+ 
+ Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelo de *series de tiempo*.
 
 ## Análisis descriptivo
 
@@ -94,15 +103,20 @@ datos_trabajo_2$`Año/Mes` <- ym(datos_trabajo_2$`Año/Mes`) # Pasamos a formato
 datos_trabajo_2$Año <- factor(datos_trabajo_2$Año)
 ```
 
-
-```{r grafico serie 2}
+```{r datos empresa 1}
 datos_empresa_1 <- datos_trabajo_2 |> 
   group_by(`Año/Mes`, Distribuidora) |> 
-  filter(Distribuidora == "EMPRESA 1") |> 
+  filter(Distribuidora == "EMPRESA 1") |> # Me quedo solo con los datos de la empresa 1
+  filter(`Año/Mes` != "2024-09-01") |> # Filtro septiembre porque esta incompleto
   summarise(
     Cantidad_total_HL = sum(`Cantidad Total en HL`)
   ) |> 
   ungroup()
+```
+
+```{r grafico serie 2}
+#| fig-cap: "Unidades vendidas mensuales en (HL)"
+#| label: fig-serie1
 
 datos_empresa_1 |> 
   ggplot() +
@@ -115,24 +129,28 @@ datos_empresa_1 |>
   theme_bw()
 ```
 
-Parece haber un comportamiento estacional
+En la @fig-serie1 se puede observar un comportamiento estacional de las unidades vendidas, disminuye considerablemente en los meses (mayo, junio y julio) y luego aumenta considerablemente en los meses (noviembre - diciembre - enero) en casi todos los años, exceptuando el año 2020 por la pandemia.
 
 ```{r grafico estacional 2}
+#| fig-cap: "Comportamiento anual de las unidades vendidas en (HL)"
+#| label: fig-serie2
+
 datos_empresa_1 |> 
   mutate(anio = factor(year(`Año/Mes`)),
          mes = factor(month(`Año/Mes`))) |> 
-  filter(anio != 2024) |> 
   ggplot() +
   aes(x = mes, y = Cantidad_total_HL, group = anio, color = anio) +
   geom_line() +
   scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
   labs(x = "Mes", y = "Cantidad total vendida (HL)", color = "Año") +
-  theme_bw()
+  theme_bw() +
+  theme(
+    legend.position = "bottom"
+  )
 ```
+En @fig-serie2 podemos observar que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
 
-Gráfico de autocorrelación
-
-```{r grafico autocorrelacion 2}
+```{r grafico autocorrelacion 1}
 autocorrelacion_2 <- acf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
 datos_autocorrelacion <- data.frame(
   acf = autocorrelacion_2$acf,
@@ -141,7 +159,27 @@ datos_autocorrelacion <- data.frame(
 
 alpha <- 0.95
 conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_2$n.used)
+```
 
+```{r grafico de autocorrelacion parcial 1}
+pautocorrelacion_2 <- pacf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
+datos_pautocorrelacion <- data.frame(
+  pacf = pautocorrelacion_2$acf,
+  lag = pautocorrelacion_2$lag
+)
+
+alpha <- 0.95
+conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_2$n.used)
+```
+
+
+```{r graficos fac y facp}
+#| label: fig-serie3
+#| layout-ncol: 2
+#| fig-cap: "Funciones de autocorrelación muestral"
+#| fig-subcap:
+#|   - "FACM"
+#|   - "FACPM"
 
 datos_autocorrelacion |> 
   ggplot() +
@@ -153,17 +191,6 @@ datos_autocorrelacion |>
   scale_x_continuous(breaks = seq(0, 80, 4)) +
   labs(x = "Rezago", y = expression(rho[k])) +
   theme_bw()
-```
-
-```{r grafico de autocorrelacion parcial 2}
-pautocorrelacion_2 <- pacf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
-datos_pautocorrelacion <- data.frame(
-  pacf = pautocorrelacion_2$acf,
-  lag = pautocorrelacion_2$lag
-)
-
-alpha <- 0.95
-conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_2$n.used)
 
 datos_pautocorrelacion |> 
   ggplot() +
@@ -173,16 +200,21 @@ datos_pautocorrelacion |>
   geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
   scale_x_continuous(breaks = seq(0, 80, 4)) +
-  labs(y = expression(phi[kk]), x = "Rezago") +
+  labs(y = expression(Phi[kk]), x = "Rezago") +
   theme_bw()
 ```
+
+En @fig-serie3 se puede observar que la FACM tiene un decrecimiento lento y oscilante, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM parece tener un decrecimiento aproximadamente exponencial.
 
 ### Analisis de dispersion
 
 ```{r boxplot por año 2}
+#| fig-cap: "Boxplots de las unidades vendidas en (HL) por año"
+#| label: fig-serie4
+
 datos_empresa_1 |> 
   mutate(anio = factor(year(`Año/Mes`))) |> 
-  filter(anio != 2024) |> 
+  filter(anio != 2024) |> # Filtro el 2024 porque está incompleto
   ggplot() +
   aes(x = anio, y = Cantidad_total_HL) +
   geom_boxplot(fill = "dodgerblue2") +
@@ -193,30 +225,26 @@ datos_empresa_1 |>
 
 ```
 
-Parece haber variabilidad constante, un poco más alta en el año 2020.
+Se puede observar en la @fig-serie4 que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en varincia, además se puede apreciar la presencia de outliers en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
 
-## Transformación de la serie
+Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad ajusta el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la varianza de la serie.
 
 ```{r transformacion box-cox}
 bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
 
 # Grafico de la transformacion box cox
-data.frame(
-  x = bc_transf$x,
-  y = bc_transf$y
-) |> 
-  ggplot() +
-  aes(x = x, y = y) +
-  geom_line() +
-  geom_segment(x = bc_transf$x[which.max(bc_transf$y)], xend = bc_transf$x[which.max(bc_transf$y)], y = -76, yend = bc_transf$y[bc_transf$x == bc_transf$x[which.max(bc_transf$y)]], lty = 2) +
-  scale_x_continuous(breaks = seq(-2, 2, 0.5)) +
-  labs(x = expression(lambda), y = "Log-verosimilitud") +
-  theme_bw()
+# data.frame(
+#   x = bc_transf$x,
+#   y = bc_transf$y
+# ) |> 
+#   ggplot() +
+#   aes(x = x, y = y) +
+#   geom_line() +
+#   geom_segment(x = bc_transf$x[which.max(bc_transf$y)], xend = bc_transf$x[which.max(bc_transf$y)], y = -76, yend = bc_transf$y[bc_transf$x == bc_transf$x[which.max(bc_transf$y)]], lty = 2) +
+#   scale_x_continuous(breaks = seq(-2, 2, 0.5)) +
+#   labs(x = expression(lambda), y = "Log-verosimilitud") +
+#   theme_bw()
 ```
-
-Otro análisis que sería propicio de realizar, seria calcular el Coeficiente de Variación, bajo distintas
-transformaciones de Box-Cox, con el fin de poder evaluar si una transformación de potencia seria
-propicia para nuestra serie.
 
 ```{r transformacion box-cox 2}
 # data.frame(
@@ -244,42 +272,29 @@ bc <- data.frame(
   lambda = c(-2, -1, -0.5, 0, 0.5, 1, 2),
   Coeficiente_de_variacion = c(sd(y_lambda.2)/mean(y_lambda.2), sd(y_lambda.1)/mean(y_lambda.1), sd(y_lambda.05)/mean(y_lambda.05), sd(y_lambda0)/mean(y_lambda0), sd(y_lambda05)/mean(y_lambda05), sd(datos_empresa_1$Cantidad_total_HL)/mean(datos_empresa_1$Cantidad_total_HL), sd(y_lambda2)/mean(y_lambda2))
   )
-
-kableExtra::kable(bc, digits = 4)
 ```
 
-Observando la tabla, es apropiado aplicar la transformacion $y^{(\lambda)} = ln(y)$.
 
-### Análisis descriptivo de la serie transformada
+```{r transformacion box-cox 3}
+#| tbl-cap: "Coeficiente de variación"
+
+bc |> 
+  `colnames<-`(c("$\\lambda$", "Coeficiente de variación")) |> 
+  kable(digits = 4,
+        format = "pipe")
+```
+
+\newpage
+
+Observando la Tabla 1, el coeficiente de variación mínimo esta asociado a un $\lambda = 0$, por lo que es apropiado aplicar la transformacion $y^{(\lambda)} = ln(y)$. 
+
+## Identificación del modelo
 
 ```{r datos transformados}
 datos_empresa_transformados <- datos_empresa_1 |> 
   mutate(ln_y = log(datos_empresa_1$Cantidad_total_HL),
          anio = factor(year(`Año/Mes`)),
          mes = factor(month(`Año/Mes`)))
-```
-
-
-```{r descriptivo serie transformada}
-datos_empresa_transformados |> 
-  ggplot() +
-  aes(x = `Año/Mes`, y = ln_y) +
-  geom_line() +
-  geom_point(size = 1.5, color = "dodgerblue2") +
-  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
-  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
-  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
-  theme_bw()
-```
-```{r descriptivo serie transformada 2}
-datos_empresa_transformados |>
-  filter(anio != 2024) |> 
-  ggplot() +
-  aes(x = mes, y = ln_y, group = anio, color = anio) +
-  geom_line() +
-  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
-  labs(x = "Mes", y = "Log. natural de la cantidad total vendida (HL)", color = "Año") +
-  theme_bw()
 ```
 
 ```{r grafico de la fac serie transformada}
@@ -291,18 +306,6 @@ datos_autocorrelacion_transf <- data.frame(
 
 alpha <- 0.95
 conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_transf$n.used)
-
-
-datos_autocorrelacion_transf |> 
-  ggplot() +
-  aes(x = lag, y = acf) +
-  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
-  geom_point(size = 1.5, color = "dodgerblue2") +
-  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
-  geom_hline(yintercept = 0) +
-  scale_x_continuous(breaks = seq(0, 80, 4)) +
-  labs(x = "Rezago", y = expression(rho[k])) +
-  theme_bw()
 ```
 
 ```{r grafico de la facp serie transformada}
@@ -314,6 +317,37 @@ datos_pautocorrelacion_trans <- data.frame(
 
 alpha <- 0.95
 conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_trans$n.used)
+```
+
+```{r descriptivo serie transformada}
+#| label: fig-serie5
+#| layout: [[30], [50, 50]]
+#| fig-cap: "Serie unidades vendidas en (HL)"
+#| fig-subcap: 
+#|   - "Log. natural unidades vendidas mensuales en (HL)"
+#|   - "FACM"
+#|   - "FACPM"
+
+datos_empresa_transformados |> 
+  ggplot() +
+  aes(x = `Año/Mes`, y = ln_y) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+
+datos_autocorrelacion_transf |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
 
 datos_pautocorrelacion_trans |> 
   ggplot() +
@@ -323,13 +357,13 @@ datos_pautocorrelacion_trans |>
   geom_hline(yintercept=conf.lims2, lty=2, col='blue') +
   geom_hline(yintercept = 0) +
   scale_x_continuous(breaks = seq(0, 80, 4)) +
-  labs(y = expression(phi[kk]), x = "Rezago") +
+  labs(y = expression(Phi[kk]), x = "Rezago") +
   theme_bw()
 ```
 
 ```{r descriptivo serie transformada 3}
 datos_empresa_transformados |> 
-  filter(anio != 2024) |> 
+  filter(anio != 2024) |>
   ggplot() +
   aes(x = anio, y = ln_y) +
   geom_boxplot(fill = "dodgerblue2") +
@@ -341,24 +375,137 @@ datos_empresa_transformados |>
 Por último, hacemos el análisis de tendencia de la serie para ver si hay alguna tendencia alrededor de la media
 
 ```{r tendencia de la serie transformada}
-tabla_promedios <- datos_empresa_transformados |> 
-  group_by(anio) |> 
-  summarise(media_anio = mean(ln_y)) |> 
-  ungroup()
+# tabla_promedios <- datos_empresa_transformados |> 
+#   group_by(anio) |> 
+#   summarise(media_anio = mean(ln_y)) |> 
+#   ungroup()
+# 
+# media_gral <- datos_empresa_transformados |> 
+#   filter(anio != 2024) |> 
+#   summarise(media = mean(ln_y))
+# 
+# tabla_promedios |> 
+#   filter(anio != 2024) |> 
+#   ggplot() +
+#   geom_line(aes(x = anio, y = media_anio, group = 1)) +
+#   geom_point(aes(x = anio, y = media_anio)) +
+#   geom_hline(yintercept = media_gral$media, lty = 2) +
+#   labs(x = "Año", y = "Promedio del log. natural de la cantidad total vendida (HL)") +
+#   theme_bw()
+```
 
-media_gral <- datos_empresa_transformados |> 
-  filter(anio != 2024) |> 
-  summarise(media = mean(ln_y))
+```{r datos entrenamiento y prueba}
+datos_entrenamiento <- datos_empresa_transformados[1:74,]
+datos_prueba <- datos_empresa_transformados[75:80,]
+```
 
-tabla_promedios |> 
-  filter(anio != 2024) |> 
+### Diferenciación de la serie
+
+Como la serie tiene un comportamiento estacional, realizamos una diferenciación en la parte estacional
+
+```{r diferenciacion de la serie}
+diferencia_est <- difference(datos_entrenamiento$ln_y, differences = 12)
+datos_diferencia <- datos_entrenamiento
+datos_diferencia$dif_est <- diferencia_est
+
+datos_diferencia[13:74,] |> 
   ggplot() +
-  geom_line(aes(x = anio, y = media_anio, group = 1)) +
-  geom_point(aes(x = anio, y = media_anio)) +
-  geom_hline(yintercept = media_gral$media, lty = 2) +
-  labs(x = "Año", y = "Promedio del log. natural de la cantidad total vendida (HL)") +
+  aes(x = `Año/Mes`, y = dif_est) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
   theme_bw()
+```
+
+```{r fac dif est}
+autocorrelacion_dif <- acf(datos_diferencia$dif_est[13:74], lag.max = 61, plot = F)
+datos_autocorrelacion_dif <- data.frame(
+  acf = autocorrelacion_dif$acf,
+  lag = autocorrelacion_dif$lag
+)
+
+alpha <- 0.95
+conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_dif$n.used)
+
+
+datos_autocorrelacion_dif |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
+```
+
+```{r facp dif est}
+pautocorrelacion_dif <- pacf(datos_diferencia$dif_est[13:74], lag.max = 61, plot = F)
+datos_pautocorrelacion_dif <- data.frame(
+  pacf = pautocorrelacion_dif$acf,
+  lag = pautocorrelacion_dif$lag
+)
+
+alpha <- 0.95
+conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_dif$n.used)
+
+
+datos_pautocorrelacion_dif |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(Phi[kk])) +
+  theme_bw()
+```
+
+Observando las funciones de autocorrelación y autocorrelación parcial de la serie diferenciada en la parte estacional, podemos plantear los siguientes modelos:
+
+```{r tabla modelo propuestos}
+data.frame(
+  Modelo2 = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4"),
+  Modelo = c("SARIMA(2,0,2)(1,1,0)_12", "SARIMA(2,0,2)(2,1,0)_12", "SARIMA(2,0,3)(1,1,0)_12", "SARIMA(2,0,3)(2,1,0)_12")
+) |>
+  kable()
 ```
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+## Bibliografía
+
+- Wei, W.S. (2006) Time Series Analysis: Univariate and Multivariate Methods, 2nd edition
+
+- Hyndman, R.J., & Athanasopoulos, G. (2021) Forecasting: principles and practice, 3rd edition
