@@ -2,7 +2,6 @@
 format: 
   pdf:
     fig-pos: "H"
-    tbl-pos: "H"
     fig-cap-location: top
     tbl-cap-location: top
 lang: es
@@ -56,9 +55,9 @@ knitr::include_graphics("logounr.png")
 
 \large
 
-**Autor: Franco Santini**
+**Autor: Santini, Franco**
 
-**Docentes: Fernanda Mendez - Facundo Sigal**
+**Docentes: Mendez, Fernanda - Sigal, Facundo**
 
 **2024**
 \normalsize
@@ -83,6 +82,7 @@ library(readxl) # Leer archivos excel
 library(fpp3) # Paquete del libro fpp3
 library(kableExtra) # Tablas
 library(forecast) # Pronosticos
+library(ggrepel) # Texto en el gráfico estacional
 ```
 
 # Introducción
@@ -91,9 +91,10 @@ library(forecast) # Pronosticos
  
  Cabe aclarar que en el período de estudio, atravesamos un evento muy catastrófico en todas las áreas, particularmente en el sector de logística, la pandemia del COVID-19. Al afectar principalmente a las personas, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia de COVID-19. Debido a esta medida, a fines de marzo del 2020 - principios de abril del 2020, el sector de logística fue afectado y en general se produjo una caída en las ventas con respecto al año anterior.
  
- Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelo de *series de tiempo*.
+ Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelos de *series de tiempo*.
 
 ## Análisis descriptivo
+
 
 ```{r carga datos 2}
 datos2 <- read_excel("Datos/empresa_casilda.xlsx")
@@ -135,17 +136,32 @@ En la @fig-serie1 se puede observar un comportamiento estacional de las unidades
 #| fig-cap: "Comportamiento anual de las unidades vendidas en (HL)"
 #| label: fig-serie2
 
+etiqueta_graph <- unique(year(datos_empresa_1$`Año/Mes`))
+
 datos_empresa_1 |> 
   mutate(anio = factor(year(`Año/Mes`)),
          mes = factor(month(`Año/Mes`))) |> 
   ggplot() +
   aes(x = mes, y = Cantidad_total_HL, group = anio, color = anio) +
   geom_line() +
+  geom_text_repel(data = subset(datos_empresa_1 |> 
+  mutate(anio = factor(year(`Año/Mes`)),
+         mes = factor(month(`Año/Mes`))), mes == 1),
+    aes(color = anio, label = anio),
+    fontface = "bold",
+    size = 2.5,
+    # direction = "y",
+    segment.size = 0,
+    segment.alpha = 0,
+    nudge_x = -0.25,
+    box.padding = 0,
+    force = 0.4
+  ) +
   scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
   labs(x = "Mes", y = "Cantidad total vendida (HL)", color = "Año") +
   theme_bw() +
   theme(
-    legend.position = "bottom"
+    legend.position = "none"
   )
 ```
 En @fig-serie2 podemos observar que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
@@ -321,10 +337,11 @@ conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_trans$n.used)
 
 ```{r descriptivo serie transformada}
 #| label: fig-serie5
-#| layout: [[30], [50, 50]]
-#| fig-cap: "Serie unidades vendidas en (HL)"
+#| layout: [[49, -2 ,49], [49, -2 ,49]]
+#| fig-cap: "Resúmen de la Serie transformada"
 #| fig-subcap: 
-#|   - "Log. natural unidades vendidas mensuales en (HL)"
+#|   - "Log. natural de las unidades vendidas mensuales en (HL)"
+#|   - "Boxplots del Log. natural de las unidades vendidas en (HL) por año"
 #|   - "FACM"
 #|   - "FACPM"
 
@@ -336,6 +353,15 @@ datos_empresa_transformados |>
   scale_y_continuous(breaks = seq(8, 10, 0.2)) +
   scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
   labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+
+datos_empresa_transformados |> 
+  filter(anio != 2024) |>
+  ggplot() +
+  aes(x = anio, y = ln_y) +
+  geom_boxplot(fill = "dodgerblue2") +
+  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
+  labs(x = "Año", y = "Log. natural de la cantidad total vendida (HL)") +
   theme_bw()
 
 datos_autocorrelacion_transf |> 
@@ -361,37 +387,26 @@ datos_pautocorrelacion_trans |>
   theme_bw()
 ```
 
-```{r descriptivo serie transformada 3}
-datos_empresa_transformados |> 
+Luego de transformar a la serie, se realizó la @fig-serie5 que contiene un resúmen acerca del comportamiento de la serie. Notando, que ahora en el gráfico (b) se puede observar que la variabilidad parece ser un poco más constante año a año.
+
+```{r tendencia de la serie transformada, eval=FALSE}
+tabla_promedios <- datos_empresa_transformados |>
+  group_by(anio) |>
+  summarise(media_anio = mean(ln_y)) |>
+  ungroup()
+
+media_gral <- datos_empresa_transformados |>
+  filter(anio != 2024) |>
+  summarise(media = mean(ln_y))
+
+tabla_promedios |>
   filter(anio != 2024) |>
   ggplot() +
-  aes(x = anio, y = ln_y) +
-  geom_boxplot(fill = "dodgerblue2") +
-  scale_y_continuous(breaks = seq(8, 10, 0.2)) +
-  labs(x = "Año", y = "Log. natural de la cantidad total vendida (HL)") +
+  geom_line(aes(x = anio, y = media_anio, group = 1)) +
+  geom_point(aes(x = anio, y = media_anio)) +
+  geom_hline(yintercept = media_gral$media, lty = 2) +
+  labs(x = "Año", y = "Promedio del log. natural de la cantidad total vendida (HL)") +
   theme_bw()
-```
-
-Por último, hacemos el análisis de tendencia de la serie para ver si hay alguna tendencia alrededor de la media
-
-```{r tendencia de la serie transformada}
-# tabla_promedios <- datos_empresa_transformados |> 
-#   group_by(anio) |> 
-#   summarise(media_anio = mean(ln_y)) |> 
-#   ungroup()
-# 
-# media_gral <- datos_empresa_transformados |> 
-#   filter(anio != 2024) |> 
-#   summarise(media = mean(ln_y))
-# 
-# tabla_promedios |> 
-#   filter(anio != 2024) |> 
-#   ggplot() +
-#   geom_line(aes(x = anio, y = media_anio, group = 1)) +
-#   geom_point(aes(x = anio, y = media_anio)) +
-#   geom_hline(yintercept = media_gral$media, lty = 2) +
-#   labs(x = "Año", y = "Promedio del log. natural de la cantidad total vendida (HL)") +
-#   theme_bw()
 ```
 
 ```{r datos entrenamiento y prueba}
@@ -401,21 +416,12 @@ datos_prueba <- datos_empresa_transformados[75:80,]
 
 ### Diferenciación de la serie
 
-Como la serie tiene un comportamiento estacional, realizamos una diferenciación en la parte estacional
+Una vez realizado el análisis descriptivo, se notó el comportamiento estacional de la serie, por lo qué, se realiza una diferenciación en la parte estacional de la misma, pasando a trabajar con 62 observaciones. 
 
 ```{r diferenciacion de la serie}
 diferencia_est <- difference(datos_entrenamiento$ln_y, differences = 12)
 datos_diferencia <- datos_entrenamiento
 datos_diferencia$dif_est <- diferencia_est
-
-datos_diferencia[13:74,] |> 
-  ggplot() +
-  aes(x = `Año/Mes`, y = dif_est) +
-  geom_line() +
-  geom_point(size = 1.5, color = "dodgerblue2") +
-  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
-  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
-  theme_bw()
 ```
 
 ```{r fac dif est}
@@ -427,18 +433,6 @@ datos_autocorrelacion_dif <- data.frame(
 
 alpha <- 0.95
 conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(autocorrelacion_dif$n.used)
-
-
-datos_autocorrelacion_dif |> 
-  ggplot() +
-  aes(x = lag, y = acf) +
-  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
-  geom_point(size = 1.5, color = "dodgerblue2") +
-  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
-  geom_hline(yintercept = 0) +
-  scale_x_continuous(breaks = seq(0, 80, 4)) +
-  labs(x = "Rezago", y = expression(rho[k])) +
-  theme_bw()
 ```
 
 ```{r facp dif est}
@@ -450,7 +444,38 @@ datos_pautocorrelacion_dif <- data.frame(
 
 alpha <- 0.95
 conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_dif$n.used)
+```
 
+\newpage
+
+```{r graficos de la serie diferenciada}
+#| label: fig-serie6
+#| layout: [[50], [50, 50]]
+#| fig-cap: "Resúmen de la Serie diferenciada en la parte estacional"
+#| fig-subcap: 
+#|   - "Log. natural de las unidades vendidas mensuales en (HL)"
+#|   - "FACM"
+#|   - "FACPM"
+
+datos_diferencia[13:74,] |>  
+  ggplot() +
+  aes(x = `Año/Mes`, y = dif_est) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Log. natural de la cantidad total vendida (HL)") +
+  theme_bw()
+
+datos_autocorrelacion_dif |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
 
 datos_pautocorrelacion_dif |> 
   ggplot() +
@@ -464,15 +489,17 @@ datos_pautocorrelacion_dif |>
   theme_bw()
 ```
 
-Observando las funciones de autocorrelación y autocorrelación parcial de la serie diferenciada en la parte estacional, podemos plantear los siguientes modelos:
+En la @fig-serie6 se observa, el gráfico de la serie diferenciada en la parte estacional y sus respectivas funciones de autocorrelación muestral y de autocorrelación parcial muestral. En el gráfico (a) se puede observar que la serie parece ser estacionaria, dado que varia de manera oscilante sobre un valor constante. 
+Luego para realizar la identificación de los posibles modelos que se pueden ajustar a esta serie, utilizaremos los gráficos (b) y (c). En el gráfico de la FACM se puede observar que 2 rezagos son significativos, y el tercer rezago está en el límite de ser significativo, viendo la parte estacional parece que los rezagos 12, 24 y 36 son significativos, persentando un decrecimiento exponencial. En el gráfico de la FACPM se puede observar que solo los primeros 2 rezagos son significativos, y el rezago 12 correspondiente a la parte estacional, parece estar al límite de ser significativo.
 
-```{r tabla modelo propuestos}
-data.frame(
-  Modelo2 = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4"),
-  Modelo = c("SARIMA(2,0,2)(1,1,0)_12", "SARIMA(2,0,2)(2,1,0)_12", "SARIMA(2,0,3)(1,1,0)_12", "SARIMA(2,0,3)(2,1,0)_12")
-) |>
-  kable()
-```
+\newpage
+
+Por lo que teniendo esto en cuenta, planteamos los siguientes modelos que se pueden ajustar a nuestra serie: 
+
+- Modelo 1: $SARIMA(2,0,2)(1,1,0)_{12}$
+- Modelo 2: $SARIMA(2,0,2)(2,1,0)_{12}$
+- Modelo 3: $SARIMA(2,0,3)(1,1,0)_{12}$
+- Modelo 4: $SARIMA(2,0,3)(2,1,0)_{12}$
 
 
 
