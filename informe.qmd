@@ -74,14 +74,14 @@ knitr::include_graphics("logounr.png")
 \newpage
 
 ```{r librerias}
+library(fpp3) # Paquete del libro fpp3
 library(dplyr) # Manejo de datos
+library(forecast) # Pronosticos
 library(lubridate) # Manejo de fechas
 library(ggplot2) # Gráficos
 library(MASS) # Transformación Box-Cox
 library(readxl) # Leer archivos excel
-library(fpp3) # Paquete del libro fpp3
 library(kableExtra) # Tablas
-library(forecast) # Pronosticos
 library(ggrepel) # Texto en el gráfico estacional
 ```
 
@@ -502,16 +502,75 @@ Por lo que teniendo esto en cuenta, planteamos los siguientes modelos que se pue
 - Modelo 4: $SARIMA(2,0,3)(2,1,0)_{12}$
 
 
+```{r tsibble}
+datos_diferencia_2 <- datos_diferencia |> 
+  mutate(mes = as.numeric(mes)) |> 
+  dplyr::select(-`Año/Mes`) |> 
+  as_tsibble(key = c(Distribuidora, Cantidad_total_HL, ln_y, dif_est, anio),
+             index = mes)
+```
+
+Una vez planteado los modelos que vamos a utilizar para el pronóstico de la serie, se procede a estimarlos y compararlos.
+
+```{r estimacion de los modelos}
+m1 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 2), seasonal = list(order = c(1,1,0)), method = "ML")
+m2 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 2), seasonal = list(order = c(2,1,0)), method = "ML")
+m3 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 3), seasonal = list(order = c(1,1,0)), method = "ML")
+m4 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 3), seasonal = list(order = c(2,1,0)), method = "ML")
+m_auto <- auto.arima(datos_diferencia$dif_est[13:74], stepwise = F, approximation = F, method = "ML", D = 1)
+```
 
 
+```{r estimacion de los modelos 2}
+#| tbl-cap: "Comparación de los modelos"
 
+data.frame(
+  modelo = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Mod. automático"),
+  AIC = c(m1$aic, m2$aic, m3$aic, m4$aic, m_auto$aic),
+  Sigma_2 = c(m1$sigma2, m2$sigma2, m3$sigma2, m4$sigma2, m_auto$sigma2) 
+) |> 
+  `colnames<-`(c("Modelos", "AIC", "$\\hat\\sigma^2$")) |> 
+  kable(digits = 4, format = "pipe")
+```
 
+Se puede observar, que los modelos con menor $AIC$ son:
 
+- $SARIMA(2,0,3)(2,1,0)_{12}$
+- $SARIMA(0,0,5)(0,1,0)_{12}$, este modelo corresponde a la selección automática.
 
+```{r chequeo de supuestos m4}
+data.frame(
+  residuos = m4$residuals/sd(m4$residuals),
+  fecha = datos_diferencia$`Año/Mes`[13:74]
+) |> 
+  ggplot() +
+  aes(x = fecha, y = residuos) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Residuos estandarizados") +
+  theme_bw()
 
+acf(m4$residuals, lag.max = 61)
+pacf(m4$residuals, lag.max = 61)
+```
 
+```{r chequeo de supuestos modelo automatico}
+data.frame(
+  residuos = m_auto$residuals/sd(m_auto$residuals),
+  fecha = datos_diferencia$`Año/Mes`[13:74]
+) |> 
+  ggplot() +
+  aes(x = fecha, y = residuos) +
+  geom_line() +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
+  labs(x = "Fecha", y = "Residuos estandarizados") +
+  theme_bw()
 
-
+acf(m_auto$residuals, lag.max = 61)
+pacf(m_auto$residuals, lag.max = 61)
+```
 
 
 
