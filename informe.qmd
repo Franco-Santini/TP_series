@@ -496,93 +496,150 @@ Luego para realizar la identificación de los posibles modelos que se pueden aju
 
 Por lo que teniendo esto en cuenta, planteamos los siguientes modelos que se pueden ajustar a nuestra serie: 
 
-- Modelo 1: $SARIMA(2,0,2)(1,1,0)_{12}$
-- Modelo 2: $SARIMA(2,0,2)(2,1,0)_{12}$
-- Modelo 3: $SARIMA(2,0,3)(1,1,0)_{12}$
-- Modelo 4: $SARIMA(2,0,3)(2,1,0)_{12}$
+- Modelo 1: $SARIMA(0,0,3)(1,1,0)_{12}$
+- Modelo 2: $SARIMA(0,0,2)(1,1,0)_{12}$
+- Modelo 3: $SARIMA(2,0,0)(1,1,0)_{12}$
 
 
 ```{r tsibble}
 datos_diferencia_2 <- datos_diferencia |> 
-  mutate(mes = as.numeric(mes)) |> 
+  mutate(mes = as.numeric(mes),
+         date = yearmonth(`Año/Mes`),
+         key = 1) |> 
   dplyr::select(-`Año/Mes`) |> 
-  as_tsibble(key = c(Distribuidora, Cantidad_total_HL, ln_y, dif_est, anio),
-             index = mes)
+  as_tsibble(key = key,
+             index = date,
+             validate = T,
+             regular = T)
 ```
 
 Una vez planteado los modelos que vamos a utilizar para el pronóstico de la serie, se procede a estimarlos y compararlos.
 
-```{r estimacion de los modelos}
-m1 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 2), seasonal = list(order = c(1,1,0)), method = "ML")
-m2 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 2), seasonal = list(order = c(2,1,0)), method = "ML")
-m3 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 3), seasonal = list(order = c(1,1,0)), method = "ML")
-m4 <- arima(datos_diferencia$dif_est[13:74], order = c(2, 0, 3), seasonal = list(order = c(2,1,0)), method = "ML")
-m_auto <- auto.arima(datos_diferencia$dif_est[13:74], stepwise = F, approximation = F, method = "ML", D = 1)
+<!-- # ```{r ajustes de modelo con la variable transformada y diferenciada} -->
+<!-- # ajustes <- datos_diferencia_2 |> -->
+<!-- #   model( -->
+<!-- #     sarima200110 = ARIMA(dif_est ~ pdq(2,0,0) + PDQ(1,1,0), method = "ML"), -->
+<!-- #     sarima200210 = ARIMA(dif_est ~ pdq(2,0,0) + PDQ(2,1,0), method = "ML"), -->
+<!-- #     sarima100110 = ARIMA(dif_est ~ pdq(1,0,0) + PDQ(1,1,0), method = "ML"), -->
+<!-- #     sarima100210 = ARIMA(dif_est ~ pdq(1,0,0) + PDQ(2,1,0), method = "ML"), -->
+<!-- #     auto = ARIMA(dif_est, method = "ML") -->
+<!-- #   ) -->
+<!-- # ajustes |>  -->
+<!-- #   dplyr::select(-key) |>  -->
+<!-- #   tidyr::pivot_longer(everything(), names_to = "Modelos", -->
+<!-- #                      values_to = "Orden") -->
+<!-- # glance(ajustes |> dplyr::select(-key)) |>  -->
+<!-- #   arrange(AICc) |>  -->
+<!-- #   dplyr::select(.model:BIC) |>  -->
+<!-- #   kable() # Cambiar los colnames -->
+<!-- #  -->
+<!-- # ``` -->
+
+```{r ajustes de modelo con la variable transformada}
+ajustes2 <- datos_diferencia_2 |>
+  model(
+    auto = ARIMA(ln_y, stepwise = F, approximation = F, method = "ML"),
+    sarima003110 = ARIMA(ln_y ~ pdq(0,0,3) + PDQ(1,1,0), method = "ML"),
+    sarima002110 = ARIMA(ln_y ~ pdq(0,0,2) + PDQ(1,1,0), method = "ML"),
+    sarima200110 = ARIMA(ln_y ~ pdq(2,0,0) + PDQ(1,1,0), method = "ML")
+  )
+# ajustes2 |> 
+#   dplyr::select(-key) |> 
+#   tidyr::pivot_longer(everything(), names_to = "Modelos",
+#                      values_to = "Orden")
+glance(ajustes2 |> dplyr::select(-key)) |> 
+  arrange(AICc) |> 
+  dplyr::select(.model:BIC) |>
+  mutate(nombre_modelos = c("$SARIMA(1,0,0)(0,1,1)_{12}$", "$SARIMA(2,0,0)(1,1,0)_{12}$", "$SARIMA(0,0,2)(1,1,0)_{12}$", "$SARIMA(0,0,3)(1,1,0)_{12}$")) |>
+  relocate(nombre_modelos) |> 
+  dplyr::select(-.model) |> 
+  `colnames<-`(c("Modelos", "$\\hat\\sigma^2$", "Log_veros.","AIC", "AICc", "BIC")) |> 
+  kable(digits = 4)
 ```
 
+```{r estimacion con arima}
+m_auto_2 <- arima(datos_diferencia_2$ln_y, order = c(1,0,0), seasonal = list(order = c(0,1,1), period = 12), method = "ML")
 
-```{r estimacion de los modelos 2}
-#| tbl-cap: "Comparación de los modelos"
-
-data.frame(
-  modelo = c("Modelo 1", "Modelo 2", "Modelo 3", "Modelo 4", "Mod. automático"),
-  AIC = c(m1$aic, m2$aic, m3$aic, m4$aic, m_auto$aic),
-  Sigma_2 = c(m1$sigma2, m2$sigma2, m3$sigma2, m4$sigma2, m_auto$sigma2) 
-) |> 
-  `colnames<-`(c("Modelos", "AIC", "$\\hat\\sigma^2$")) |> 
-  kable(digits = 4, format = "pipe")
+m_prop_2 <- arima(datos_diferencia_2$ln_y, order = c(2,0,0), seasonal = list(order = c(1,1,0), period = 12), method = "ML")
 ```
+
 
 Se puede observar, que los modelos con menor $AIC$ son:
 
-- $SARIMA(2,0,3)(2,1,0)_{12}$
-- $SARIMA(0,0,5)(0,1,0)_{12}$, este modelo corresponde a la selección automática.
+- $SARIMA(2,0,0)(1,1,0)_{12}$
+- $SARIMA(1,0,0)(0,1,1)_{12}$, este modelo corresponde a la selección automática.
 
-```{r chequeo de supuestos m4}
-data.frame(
-  residuos = m4$residuals/sd(m4$residuals),
-  fecha = datos_diferencia$`Año/Mes`[13:74]
-) |> 
+Comparamos estos modelos. (Agregar alguna explicacion)
+
+```{r}
+m_propuesto <- augment(ajustes2) |>
+  filter(.model == "sarima200110")
+m_auto <- augment(ajustes2) |>
+  filter(.model == "auto")
+```
+
+```{r residuos auto graficos}
+m_auto |> 
+  mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
-  aes(x = fecha, y = residuos) +
+  aes(x = datos_diferencia$`Año/Mes`, y = innov_est) +
   geom_line() +
   geom_point(size = 1.5, color = "dodgerblue2") +
   scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
   labs(x = "Fecha", y = "Residuos estandarizados") +
-  theme_bw()
+  theme_bw() # Hay un outlier
 
-acf(m4$residuals, lag.max = 61)
-pacf(m4$residuals, lag.max = 61)
+acf(m_auto$.innov, lag.max = 61)
+
+augment(ajustes2) |>
+  filter(.model == "auto") |>
+  features(.innov, ljung_box, lag=18, dof=2)
+
+# Lag 18 se cumple el test de Ljung box, por ende los residuos se comportan como ruido blanco 
+
+pacf(m_auto$.innov, lag.max = 61)
+
+# Test no paramétrico de normalidad
+nortest::ad.test(m_auto$.innov)
+shapiro.test(m_auto$.innov) # El outlier me esta desviando el supuesto de la normalidad
+m_auto_sin_outlier <- m_auto |> 
+  filter(.innov > -0.4)
+nortest::ad.test(m_auto_sin_outlier$.innov)
+shapiro.test(m_auto_sin_outlier$.innov) # Claramente se cumple la normalidad
 ```
 
-```{r chequeo de supuestos modelo automatico}
-data.frame(
-  residuos = m_auto$residuals/sd(m_auto$residuals),
-  fecha = datos_diferencia$`Año/Mes`[13:74]
-) |> 
+```{r residuos modelo planteado residuos}
+m_propuesto |> 
+  mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
-  aes(x = fecha, y = residuos) +
+  aes(x = datos_diferencia$`Año/Mes`, y = innov_est) +
   geom_line() +
   geom_point(size = 1.5, color = "dodgerblue2") +
   scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
   labs(x = "Fecha", y = "Residuos estandarizados") +
-  theme_bw()
+  theme_bw() # Hay un outlier
 
-acf(m_auto$residuals, lag.max = 61)
-pacf(m_auto$residuals, lag.max = 61)
+acf(m_propuesto$.innov, lag.max = 61)
+
+augment(ajustes2) |>
+  filter(.model == "sarima200110") |>
+  features(.innov, ljung_box, lag=13, dof=3)
+
+augment(ajustes2) |>
+  filter(.model == "sarima200110") |>
+  features(.innov, ljung_box, lag=18, dof=3)
+# Lag 13 y Lag 18 se cumple el test de Ljung box, por ende los residuos se comportan como ruido blanco (alpha = 0.05)
+
+pacf(m_propuesto$.innov, lag.max = 61)
+
+# Test no paramétrico de normalidad
+nortest::ad.test(m_propuesto$.innov)
+shapiro.test(m_propuesto$.innov) # El outlier me esta desviando el supuesto de la normalidad
+m_prop_sin_outlier <- m_propuesto |> 
+  filter(.innov > -0.4)
+nortest::ad.test(m_prop_sin_outlier$.innov)
+shapiro.test(m_prop_sin_outlier$.innov) # Claramente se cumple la normalidad
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -592,6 +649,8 @@ pacf(m_auto$residuals, lag.max = 61)
 
 ## Bibliografía
 
-- Wei, W.S. (2006) Time Series Analysis: Univariate and Multivariate Methods, 2nd edition
+- Wei, W.S. (2006). Time Series Analysis: Univariate and Multivariate Methods, 2nd edition
 
-- Hyndman, R.J., & Athanasopoulos, G. (2021) Forecasting: principles and practice, 3rd edition
+- Hyndman, R.J., & Athanasopoulos, G. (2021). Forecasting: principles and practice, 3rd edition
+
+- Guerrero, V.M. (1993). Time series analysis supported by power transformation
