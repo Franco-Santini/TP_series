@@ -87,14 +87,17 @@ library(ggrepel) # Texto en el gráfico estacional
 
 # Introducción
 
- En este trabajo se busca estudiar las unidades vendidas en Hectolitro^[Unidad de volúmen equivalente a 100 litros.] (HL) de una importante empresa de logística en la ciudad de Casilda, Santa Fe. El estudio se realiza con 80 observaciones, medidas mensualmente en el período (01/01/2018 - 31/08/2024).
+En este trabajo se busca estudiar las unidades vendidas (bebidas con y sin alcohol) en Hectolitro^[Unidad de volúmen equivalente a 100 litros.] (HL) de una importante empresa de logística en la ciudad de Casilda, Santa Fe. El estudio se realiza con 80 observaciones, medidas mensualmente en el período (01/01/2018 - 31/08/2024).
+
+
+
+Cabe aclarar que en el período de estudio, atravesamos un evento muy catastrófico en todas las áreas, particularmente en el sector de logística, la pandemia del COVID-19. Al afectar principalmente a las personas, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia de COVID-19. Debido a esta medida, a fines de marzo del 2020 - principios de abril del 2020, el sector de logística fue afectado y en general se produjo una caída en las ventas con respecto al año anterior.
  
- Cabe aclarar que en el período de estudio, atravesamos un evento muy catastrófico en todas las áreas, particularmente en el sector de logística, la pandemia del COVID-19. Al afectar principalmente a las personas, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia de COVID-19. Debido a esta medida, a fines de marzo del 2020 - principios de abril del 2020, el sector de logística fue afectado y en general se produjo una caída en las ventas con respecto al año anterior.
- 
- Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelos de *series de tiempo*.
+Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelos de *series de tiempo*.
 
 ## Análisis descriptivo
 
+En primera instancia, comenzamos con el gráfico de la serie para observar el comportamiento de las ventas a través del período en estudio.
 
 ```{r carga datos 2}
 datos2 <- read_excel("Datos/empresa_casilda.xlsx")
@@ -130,7 +133,7 @@ datos_empresa_1 |>
   theme_bw()
 ```
 
-En la @fig-serie1 se puede observar un comportamiento estacional de las unidades vendidas, disminuye considerablemente en los meses (mayo, junio y julio) y luego aumenta considerablemente en los meses (noviembre - diciembre - enero) en casi todos los años, exceptuando el año 2020 por la pandemia.
+En la @fig-serie1 se puede observar un comportamiento estacional de las unidades vendidas, disminuye considerablemente en los meses (mayo, junio y julio) y luego aumenta considerablemente en los meses (noviembre - diciembre - enero) en casi todos los años, exceptuando el año 2020 que puede deberse a la pandemia.
 
 ```{r grafico estacional 2}
 #| fig-cap: "Comportamiento anual de las unidades vendidas en (HL)"
@@ -164,7 +167,7 @@ datos_empresa_1 |>
     legend.position = "none"
   )
 ```
-En @fig-serie2 podemos observar que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
+La @fig-serie2 podemos observar que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
 
 ```{r grafico autocorrelacion 1}
 autocorrelacion_2 <- acf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
@@ -220,7 +223,7 @@ datos_pautocorrelacion |>
   theme_bw()
 ```
 
-En @fig-serie3 se puede observar que la FACM tiene un decrecimiento lento y oscilante, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM parece tener un decrecimiento aproximadamente exponencial.
+De acuerdo con lo mostrado en @fig-serie3, se puede observar que la FACM tiene un decrecimiento lento y sinuoso, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM no parece tener un patrón claro.
 
 ### Analisis de dispersion
 
@@ -241,9 +244,9 @@ datos_empresa_1 |>
 
 ```
 
-Se puede observar en la @fig-serie4 que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en varincia, además se puede apreciar la presencia de outliers en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
+Se puede observar en la @fig-serie4 que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en variancia, además se puede apreciar la presencia de outliers en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
 
-Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad ajusta el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la varianza de la serie.
+Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad ajusta el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la varianza de la serie. Aquel valor de $\lambda$ para el cuál se minimice el coeficiente de variación, será la transformación que tendremos que realizar.
 
 ```{r transformacion box-cox}
 bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
@@ -416,7 +419,7 @@ datos_prueba <- datos_empresa_transformados[75:80,]
 
 ### Diferenciación de la serie
 
-Una vez realizado el análisis descriptivo, se notó el comportamiento estacional de la serie, por lo qué, se realiza una diferenciación en la parte estacional de la misma, pasando a trabajar con 62 observaciones. 
+Una vez realizado el análisis descriptivo, se notó el comportamiento estacional de la serie, por lo qué, se realiza una diferenciación en la parte estacional de la misma, dado que lo rezagos estacionales en la FACM observada en la @fig-serie5 parecen decrecer lentamente de forma lineal, pasando a trabajar con 62 observaciones. 
 
 ```{r diferenciacion de la serie}
 diferencia_est <- difference(datos_entrenamiento$ln_y, differences = 12)
@@ -515,39 +518,22 @@ datos_diferencia_2 <- datos_diferencia |>
 
 Una vez planteado los modelos que vamos a utilizar para el pronóstico de la serie, se procede a estimarlos y compararlos.
 
-<!-- # ```{r ajustes de modelo con la variable transformada y diferenciada} -->
-<!-- # ajustes <- datos_diferencia_2 |> -->
-<!-- #   model( -->
-<!-- #     sarima200110 = ARIMA(dif_est ~ pdq(2,0,0) + PDQ(1,1,0), method = "ML"), -->
-<!-- #     sarima200210 = ARIMA(dif_est ~ pdq(2,0,0) + PDQ(2,1,0), method = "ML"), -->
-<!-- #     sarima100110 = ARIMA(dif_est ~ pdq(1,0,0) + PDQ(1,1,0), method = "ML"), -->
-<!-- #     sarima100210 = ARIMA(dif_est ~ pdq(1,0,0) + PDQ(2,1,0), method = "ML"), -->
-<!-- #     auto = ARIMA(dif_est, method = "ML") -->
-<!-- #   ) -->
-<!-- # ajustes |>  -->
-<!-- #   dplyr::select(-key) |>  -->
-<!-- #   tidyr::pivot_longer(everything(), names_to = "Modelos", -->
-<!-- #                      values_to = "Orden") -->
-<!-- # glance(ajustes |> dplyr::select(-key)) |>  -->
-<!-- #   arrange(AICc) |>  -->
-<!-- #   dplyr::select(.model:BIC) |>  -->
-<!-- #   kable() # Cambiar los colnames -->
-<!-- #  -->
-<!-- # ``` -->
-
 ```{r ajustes de modelo con la variable transformada}
+#| tbl-cap: "Comparación de los modelos"
+
 ajustes2 <- datos_diferencia_2 |>
   model(
-    auto = ARIMA(ln_y, stepwise = F, approximation = F, method = "ML"),
-    sarima003110 = ARIMA(ln_y ~ pdq(0,0,3) + PDQ(1,1,0), method = "ML"),
-    sarima002110 = ARIMA(ln_y ~ pdq(0,0,2) + PDQ(1,1,0), method = "ML"),
-    sarima200110 = ARIMA(ln_y ~ pdq(2,0,0) + PDQ(1,1,0), method = "ML")
+    auto = ARIMA(log(Cantidad_total_HL), stepwise = F, approximation = F, method = "ML"),
+    sarima003110 = ARIMA(log(Cantidad_total_HL) ~ pdq(0,0,3) + PDQ(1,1,0), method = "ML"),
+    sarima002110 = ARIMA(log(Cantidad_total_HL) ~ pdq(0,0,2) + PDQ(1,1,0), method = "ML"),
+    sarima200110 = ARIMA(log(Cantidad_total_HL) ~ pdq(2,0,0) + PDQ(1,1,0), method = "ML"),
+    sarima100110 = ARIMA(log(Cantidad_total_HL) ~ pdq(1,0,0) + PDQ(1,1,0), method = "ML")
   )
-# ajustes2 |> 
-#   dplyr::select(-key) |> 
+# ajustes2 |>
+#   dplyr::select(-key) |>
 #   tidyr::pivot_longer(everything(), names_to = "Modelos",
 #                      values_to = "Orden")
-glance(ajustes2 |> dplyr::select(-key)) |> 
+glance(ajustes2 |> dplyr::select(-key, -'sarima100110')) |> 
   arrange(AICc) |> 
   dplyr::select(.model:BIC) |>
   mutate(nombre_modelos = c("$SARIMA(1,0,0)(0,1,1)_{12}$", "$SARIMA(2,0,0)(1,1,0)_{12}$", "$SARIMA(0,0,2)(1,1,0)_{12}$", "$SARIMA(0,0,3)(1,1,0)_{12}$")) |>
@@ -560,90 +546,239 @@ glance(ajustes2 |> dplyr::select(-key)) |>
 ```{r estimacion con arima}
 m_auto_2 <- arima(datos_diferencia_2$ln_y, order = c(1,0,0), seasonal = list(order = c(0,1,1), period = 12), method = "ML")
 
-m_prop_2 <- arima(datos_diferencia_2$ln_y, order = c(2,0,0), seasonal = list(order = c(1,1,0), period = 12), method = "ML")
-```
 
+# m_auto_2 # Los dos parámetros son significativos
+
+m_prop_2 <- arima(datos_diferencia_2$ln_y, order = c(2,0,0), seasonal = list(order = c(1,1,0), period = 12), method = "ML")
+
+# m_prop_2 # ar1 y sar1 son significativos, ar2 no es significativo
+
+m_prop_2.1 <- arima(datos_diferencia_2$ln_y, order = c(1,0,0), seasonal = list(order = c(1,1,0), period = 12), method = "ML")
+```
 
 Se puede observar, que los modelos con menor $AIC$ son:
 
-- $SARIMA(2,0,0)(1,1,0)_{12}$
-- $SARIMA(1,0,0)(0,1,1)_{12}$, este modelo corresponde a la selección automática.
+1. $SARIMA(2,0,0)(1,1,0)_{12}$
+2. $SARIMA(1,0,0)(0,1,1)_{12}$
 
-Comparamos estos modelos. (Agregar alguna explicacion)
+El modelo 1 tiene 3 parámetros de los cuáles $\phi_2$ no es significativo, por lo que a dicho modelo le sacamos un parámetro en la parte regular. Por lo que el cambiamos el modelo 1 por un modelo $SARIMA(1,0,0)(1,1,0)_{12}$. Con respecto al modelo 2, sus dos parámetros son significativos, teniendo además una estimación de $\hat\sigma^2$ menor que la del modelo 1. De igual manera, seguiré con los modelos, definiendo cuál usaré para la predicción, aquél que tenga una mejor capacidad predictiva, teniendo en cuenta la verificación de los supuestos de los mismos.
 
-```{r}
+## Evaluación de los supuestos de los modelos
+
+Esta instancia se centra en la verificación de los supuestos de ambos modelos mencionados anteriormente. Se hará un análisis exhaustivo para el modelo $SARIMA(1,0,0)(0,1,1)_{12}$, mientras que para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$, al ser un procedimiento análogo, se dejarán en el anexo la @fig-serie-anexo.
+
+```{r chequeo de los supuestos}
 m_propuesto <- augment(ajustes2) |>
-  filter(.model == "sarima200110")
+  filter(.model == "sarima100110")
+
 m_auto <- augment(ajustes2) |>
   filter(.model == "auto")
 ```
 
+```{r data frame para los graficos}
+acf_auto <- acf(m_auto$.innov, lag.max = 61, plot = F)
+pacf_auto <- pacf(m_auto$.innov, lag.max = 61, plot = F)
+
+datos_autocorrelacion_auto <- data.frame(
+  lag = acf_auto$lag,
+  acf = acf_auto$acf
+)
+
+datos_pautocorrelacion_auto <- data.frame(
+  lag = pacf_auto$lag,
+  pacf = pacf_auto$acf
+)
+```
+
+\newpage 
+
 ```{r residuos auto graficos}
+#| label: fig-serie7
+#| layout: [[49, -2 ,49], [49, -2 ,49]]
+#| fig-cap: "Análisis de residuos $SARIMA(1,0,0)(0,1,1)_{12}$"
+#| fig-subcap: 
+#|   - "Residuos estandarizados vs fecha"
+#|   - "Histograma de los residuos estandarizados"
+#|   - "FACM de los residuos"
+#|   - "FACPM de los residuos"
+
 m_auto |> 
   mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
   aes(x = datos_diferencia$`Año/Mes`, y = innov_est) +
   geom_line() +
+  geom_hline(yintercept = c(-3, 3), linetype = "dashed", col = "blue") +
   geom_point(size = 1.5, color = "dodgerblue2") +
   scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
   labs(x = "Fecha", y = "Residuos estandarizados") +
   theme_bw() # Hay un outlier
 
-acf(m_auto$.innov, lag.max = 61)
+m_auto |> 
+  mutate(innov_est = .innov/sd(.innov)) |> 
+  ggplot() +
+  aes(x = innov_est) +
+  geom_histogram(fill = "dodgerblue2", color = "black", bins = 12) +
+  labs(x = "Residuos estandarizados", y = "Frecuencias") +
+  theme_bw()
 
-augment(ajustes2) |>
-  filter(.model == "auto") |>
-  features(.innov, ljung_box, lag=18, dof=2)
+datos_autocorrelacion_auto |>
+  filter(lag != 0) |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
 
-# Lag 18 se cumple el test de Ljung box, por ende los residuos se comportan como ruido blanco 
+datos_pautocorrelacion_auto |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(Phi[kk])) +
+  theme_bw()
 
-pacf(m_auto$.innov, lag.max = 61)
-
-# Test no paramétrico de normalidad
-nortest::ad.test(m_auto$.innov)
-shapiro.test(m_auto$.innov) # El outlier me esta desviando el supuesto de la normalidad
-m_auto_sin_outlier <- m_auto |> 
-  filter(.innov > -0.4)
-nortest::ad.test(m_auto_sin_outlier$.innov)
-shapiro.test(m_auto_sin_outlier$.innov) # Claramente se cumple la normalidad
 ```
 
-```{r residuos modelo planteado residuos}
+En la @fig-serie7 se puede observar en los gráficos (a) y (b) que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y una variancia constante. También se puede apreciar, en el gráfico (b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en los gráficos (c) y (d), da la impresión de que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
+
+Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior.
+
+## Evaluación de la capacidad predictiva
+
+```{r}
+# Convertimos el data set a objeto series de tiempo
+datos_prueba_2 <- datos_prueba |> 
+  mutate(mes = as.numeric(mes),
+         date = yearmonth(`Año/Mes`),
+         key = 1) |> 
+  dplyr::select(-`Año/Mes`) |> 
+  as_tsibble(key = key,
+             index = date,
+             validate = T,
+             regular = T)
+
+# Comparación de la capacidada predictiva
+forecast(ajustes2, h=6) |>
+  filter(.model %in% c('auto', 'sarima200110')) |>
+  accuracy(datos_prueba_2) |>
+  dplyr::select(.model, RMSE:MAPE) |> 
+  mutate(nombre_modelos = c("$SARIMA(1,0,0)(0,1,1)_{12}$", "$SARIMA(2,0,0)(1,1,0)_{12}$")) |>
+  relocate(nombre_modelos) |> 
+  dplyr::select(-.model)
+
+# Predicciones
+forecast(ajustes2, h=6) |>
+  filter(.model %in% c('auto', 'sarima200110'))
+
+forecast(ajustes2, h=6) |>
+  filter(.model=='sarima200110') |>
+  autoplot(datos_diferencia_2)
+```
+
+
+\newpage
+
+## Anexo
+
+```{r data frame para los graficos 2}
+acf_prop <- acf(m_propuesto$.innov, lag.max = 61, plot = F)
+pacf_prop <- pacf(m_propuesto$.innov, lag.max = 61, plot = F)
+
+datos_autocorrelacion_prop <- data.frame(
+  lag = acf_prop$lag,
+  acf = acf_prop$acf
+)
+
+datos_pautocorrelacion_prop <- data.frame(
+  lag = pacf_prop$lag,
+  pacf = pacf_prop$acf
+)
+```
+
+```{r ljung-box test modelo automatico}
+# Tabla cada 6 rezagos
+ljung_box_auto <- data.frame(
+  rezago = c(6, 12, 18, 24, 30, 36),
+  test = c(ljung_box(m_auto$.innov, lag = 6, dof = 2)[2],
+           ljung_box(m_auto$.innov, lag = 12, dof = 2)[2],
+           ljung_box(m_auto$.innov, lag = 18, dof = 2)[2],
+           ljung_box(m_auto$.innov, lag = 24, dof = 2)[2],
+           ljung_box(m_auto$.innov, lag = 30, dof = 2)[2],
+           ljung_box(m_auto$.innov, lag = 36, dof = 2)[2])
+)
+
+ljung_box_prop <- data.frame(
+  rezago = c(6, 12, 18, 24, 30, 36),
+  test = c(ljung_box(m_propuesto$.innov, lag = 6, dof = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 12, dof = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 18, dof = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 24, dof = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 30, dof = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 36, dof = 2)[2])
+)
+```
+
+
+```{r residuos auto graficos 2}
+#| label: fig-serie-anexo
+#| layout: [[49, -2 ,49], [49, -2 ,49]]
+#| fig-cap: "Análisis de residuos $SARIMA(1,0,0)(1,1,0)_{12}$"
+#| fig-subcap: 
+#|   - "Residuos estandarizados vs fecha"
+#|   - "Histograma de los residuos estandarizados"
+#|   - "FACM de los residuos"
+#|   - "FACPM de los residuos"
+
 m_propuesto |> 
   mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
   aes(x = datos_diferencia$`Año/Mes`, y = innov_est) +
   geom_line() +
+  geom_hline(yintercept = c(-3, 3), linetype = "dashed", col = "blue") +
   geom_point(size = 1.5, color = "dodgerblue2") +
   scale_x_date(breaks = scales::date_breaks("1 year"), labels = scales::date_format("%Y")) +
   labs(x = "Fecha", y = "Residuos estandarizados") +
   theme_bw() # Hay un outlier
 
-acf(m_propuesto$.innov, lag.max = 61)
+m_propuesto |> 
+  mutate(innov_est = .innov/sd(.innov)) |> 
+  ggplot() +
+  aes(x = innov_est) +
+  geom_histogram(fill = "dodgerblue2", color = "black", bins = 12) +
+  labs(x = "Residuos estandarizados", y = "Frecuencias") +
+  theme_bw()
 
-augment(ajustes2) |>
-  filter(.model == "sarima200110") |>
-  features(.innov, ljung_box, lag=13, dof=3)
+datos_autocorrelacion_prop |>
+  filter(lag != 0) |> 
+  ggplot() +
+  aes(x = lag, y = acf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = acf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(rho[k])) +
+  theme_bw()
 
-augment(ajustes2) |>
-  filter(.model == "sarima200110") |>
-  features(.innov, ljung_box, lag=18, dof=3)
-# Lag 13 y Lag 18 se cumple el test de Ljung box, por ende los residuos se comportan como ruido blanco (alpha = 0.05)
+datos_pautocorrelacion_prop |> 
+  ggplot() +
+  aes(x = lag, y = pacf) +
+  geom_segment(aes(x = lag, xend = lag, y = 0, yend = pacf), linewidth = 1) +
+  geom_point(size = 1.5, color = "dodgerblue2") +
+  geom_hline(yintercept=conf.lims, lty=2, col='blue') +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 80, 4)) +
+  labs(x = "Rezago", y = expression(Phi[kk])) +
+  theme_bw()
 
-pacf(m_propuesto$.innov, lag.max = 61)
-
-# Test no paramétrico de normalidad
-nortest::ad.test(m_propuesto$.innov)
-shapiro.test(m_propuesto$.innov) # El outlier me esta desviando el supuesto de la normalidad
-m_prop_sin_outlier <- m_propuesto |> 
-  filter(.innov > -0.4)
-nortest::ad.test(m_prop_sin_outlier$.innov)
-shapiro.test(m_prop_sin_outlier$.innov) # Claramente se cumple la normalidad
 ```
-
-
-
-
 
 \newpage
 
