@@ -617,8 +617,9 @@ m_auto |>
   mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
   aes(x = innov_est) +
-  geom_histogram(fill = "dodgerblue2", color = "black", bins = 12) +
-  labs(x = "Residuos estandarizados", y = "Frecuencias") +
+  geom_histogram(aes(x = innov_est, y = ..density..), fill = "dodgerblue2", color = "black", bins = 12) +
+  stat_function(fun = dnorm, args = list(mean = 0, sd = 1), size = 1) +
+  labs(x = "Residuos estandarizados", y = "Densidad") +
   theme_bw()
 
 datos_autocorrelacion_auto |>
@@ -646,13 +647,18 @@ datos_pautocorrelacion_auto |>
 
 ```
 
-En la @fig-serie7 se puede observar en los gráficos (a) y (b) que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y una variancia constante. También se puede apreciar, en el gráfico (b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en los gráficos (c) y (d), da la impresión de que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
+En la @fig-serie7 se puede observar en los gráficos (a) y (b) que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y parecen tener una variancia constante. También se puede apreciar, en el gráfico (b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en los gráficos (c) y (d), da la impresión de que los residuos son incorrelados, en la tabla 4 que se encuentra en el anexo, se incluye el test de Ljung-Box para comprobar que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
 
-Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior.
+Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior, se puede observar en la @fig-serie-anexo.
 
 ## Evaluación de la capacidad predictiva
 
-```{r}
+Dado que los dos modelos mencionados anteriormente satisfacen los supuestos teóricos, la manera de decidir cuál utilizar para realizar las predicciones es en base a la capacidad predictiva que tienen, es decir, nos quedaremos con aquél modelo que tenga menor error de predicción. Para ello haremos uso de varias métricas, haciendo especial énfasis sobre el *MAPE*, dado que es expresado como un porcentaje lo cuál facilita las interpretaciones y las comparaciones.
+
+
+```{r comparación de la capacidad predictiva 1}
+#| tbl-cap: "Evaluación de la capacidad predictiva"
+
 # Convertimos el data set a objeto series de tiempo
 datos_prueba_2 <- datos_prueba |> 
   mutate(mes = as.numeric(mes),
@@ -666,26 +672,79 @@ datos_prueba_2 <- datos_prueba |>
 
 # Comparación de la capacidada predictiva
 forecast(ajustes2, h=6) |>
-  filter(.model %in% c('auto', 'sarima200110')) |>
+  filter(.model %in% c('auto', 'sarima100110')) |>
   accuracy(datos_prueba_2) |>
-  dplyr::select(.model, RMSE:MAPE) |> 
-  mutate(nombre_modelos = c("$SARIMA(1,0,0)(0,1,1)_{12}$", "$SARIMA(2,0,0)(1,1,0)_{12}$")) |>
+  dplyr::select(.model, RMSE:MAPE, -MPE) |> 
+  mutate(nombre_modelos = c("$SARIMA(1,0,0)(0,1,1)_{12}$", "$SARIMA(1,0,0)(1,1,0)_{12}$")) |>
   relocate(nombre_modelos) |> 
-  dplyr::select(-.model)
-
-# Predicciones
-forecast(ajustes2, h=6) |>
-  filter(.model %in% c('auto', 'sarima200110'))
-
-forecast(ajustes2, h=6) |>
-  filter(.model=='sarima200110') |>
-  autoplot(datos_diferencia_2)
+  dplyr::select(-.model) |> 
+  `colnames<-`(c("Modelos", "RMSE", "MAE", "MAPE")) |> 
+  kable(digits = 4)
 ```
+
+En la tabla 3, se puede verificar que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ tiene todas las medidas de error de pronóstico más bajas, por lo cuál, dicho modelo se utilizará para realizar las predicciones.
+
+```{r data frame con los datos de la predicción}
+# Predicciones
+predicciones <- forecast(ajustes2, h=6) |>
+  filter(.model == 'auto')
+
+# Data frame con las predicciones
+datos_prueba_2 <- datos_prueba_2 |> 
+  mutate(estimacion_puntual = predicciones$.mean,
+         distribucion = predicciones$Cantidad_total_HL)
+```
+
+```{r gráfico de las predicciones con el modelo auto}
+#| label: fig-serie8
+#| layout-nrow: 2
+#| fig-cap: "Comparación del pronóstico vs el valor real"
+#| fig-subcap:
+#|   - "Pronósticos de las unidades vendidas en (HL) desde 03/2024 - 08/2024"
+#|   - "Pronósticos de las unidades vendidas en (HL) desde 03/2024 - 08/2024 vs unidades vendidas en (HL) reales"
+#| fig-height: 2.80
+#| fig-width: 4
+
+predicciones |> 
+  autoplot(datos_diferencia_2 |> 
+             mutate(date = yearmonth(date)),
+           size = 1, colour = "dodgerblue2") +
+  scale_y_continuous(breaks = seq(6000, 20000, 2000)) +
+  guides(fill_ramp = guide_legend(title = "Intervalo de predicción")) +
+  labs(x = "Fecha", 
+       y = "Cantidad total vendida (HL)") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
+predicciones |> 
+  autoplot(datos_prueba_2, colour = "dodgerblue2", size = 1) +
+  scale_y_continuous(breaks = seq(6000, 20000, 1000)) +
+  guides(fill_ramp = guide_legend(title = "Intervalo de predicción")) +
+  labs(x = "Fecha", 
+       y = "Cantidad total vendida (HL)") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+\newpage
+
+En la @fig-serie8 se pueden observar las predicciones realizadas utilizando el modelo seleccionado anteriormente, en el gráfico (b) se puede ver una comparación entre el valor real (línea negra) y las predicciones realizadas (línea azul), observando que los valores reales en su mayoría se encuentran dentro del intervalo de predicción. Lo que sucede en agosto es que la empresa a la que se le analizaron los datos tuvo una decaída en las ventas sujeto a un problema en las bonificaciones por falta de presupuesto.
+
+
+## Conclusión
+
+El análisis de las ventas mensuales reveló un comportamiento estacional sin tendencias a través de los años, el cuál no tiene mayores inconvenientes además de que la variancia no es constante en el tiempo y el outlier encontrado en el año 2020, sujeto al escenario atípico que se vivió en dicho año. En base a esto se ajusto un modelo SARIMA no muy complicado, con una diferencia en la parte estacional, una parte autorregresiva de primer órden en la parte regular y una parte promedio móvil de primer orden en la parte estacional, el cuál satisface todos los supuestos teóricos.
+
+Luego, en la parte de los resultados se vió que el modelo ajustado tenía un *MAPE* del 14.4% aproximadamente, lo cuál significa que el error promedio de los pronósticos se desvían un 14.4% respecto a las unidades vendidas reales, lo cuál es aceptable pero lo ideal sería un error más chico. 
+Por último, tener en cuenta el pronóstico de agosto del año 2024, dado que en dicho mes hubo un problema con las bonificaciones en la empresa por falta de presupuesto, lo cuál esto puede modificar el desempeño del modelo y tal vez el error obtenido sería inferior a lo que se obtuvo.
 
 
 \newpage
 
 ## Anexo
+
+Todo el código con el cuál se desarrollo el trabajo práctico se encuentra en mi repostiorio de Github, al cuál se puede acceder haciendo [click aquí](https://github.com/Franco-Santini/TP_series).
 
 ```{r data frame para los graficos 2}
 acf_prop <- acf(m_propuesto$.innov, lag.max = 61, plot = F)
@@ -702,7 +761,7 @@ datos_pautocorrelacion_prop <- data.frame(
 )
 ```
 
-```{r ljung-box test modelo automatico}
+```{r ljung-box test 1}
 # Tabla cada 6 rezagos
 ljung_box_auto <- data.frame(
   rezago = c(6, 12, 18, 24, 30, 36),
@@ -723,6 +782,22 @@ ljung_box_prop <- data.frame(
            ljung_box(m_propuesto$.innov, lag = 30, dof = 2)[2],
            ljung_box(m_propuesto$.innov, lag = 36, dof = 2)[2])
 )
+```
+
+```{r test ljung-box 1}
+#| tbl-cap: "Test de Ljung-Box cada 6 rezagos"
+#| tbl-subcap: 
+#|   - "Modelo $SARIMA(1,0,0)(0,1,1)_{12}$"
+#|   - "Modelo $SARIMA(1,0,0)(1,1,0)_{12}$"
+#| layout-ncol: 2
+
+ljung_box_auto |> 
+    `colnames<-`(c("Rezago", "P-value")) |> 
+    kable(digits = 4)
+
+ljung_box_prop |> 
+    `colnames<-`(c("Rezago", "P-value")) |> 
+    kable(digits = 4)
 ```
 
 
@@ -751,8 +826,9 @@ m_propuesto |>
   mutate(innov_est = .innov/sd(.innov)) |> 
   ggplot() +
   aes(x = innov_est) +
-  geom_histogram(fill = "dodgerblue2", color = "black", bins = 12) +
-  labs(x = "Residuos estandarizados", y = "Frecuencias") +
+  geom_histogram(aes(x = innov_est, y = ..density..), fill = "dodgerblue2", color = "black", bins = 12) +
+  stat_function(fun = dnorm, args = list(mean = 0, sd = 1), size = 1) +
+  labs(x = "Residuos estandarizados", y = "Densidad") +
   theme_bw()
 
 datos_autocorrelacion_prop |>
@@ -779,6 +855,8 @@ datos_pautocorrelacion_prop |>
   theme_bw()
 
 ```
+
+
 
 \newpage
 
