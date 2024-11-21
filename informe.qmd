@@ -223,7 +223,7 @@ datos_pautocorrelacion |>
   theme_bw()
 ```
 
-De acuerdo con lo mostrado en @fig-serie3, se puede observar que la FACM tiene un decrecimiento lento y sinuoso, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM no parece tener un patrón claro.
+De acuerdo con lo mostrado en @fig-serie3, se puede observar que la FACM tiene un decrecimiento lento y sinusoidal, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM no parece tener un patrón claro.
 
 ### Analisis de dispersion
 
@@ -246,7 +246,7 @@ datos_empresa_1 |>
 
 Se puede observar en la @fig-serie4 que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en variancia, además se puede apreciar la presencia de outliers en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
 
-Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad ajusta el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la varianza de la serie. Aquel valor de $\lambda$ para el cuál se minimice el coeficiente de variación, será la transformación que tendremos que realizar.
+Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad calcular el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la variancia de la serie. Aquel valor de $\lambda$ para el cuál se minimice el coeficiente de variación, será la transformación que tendremos que realizar.
 
 ```{r transformacion box-cox}
 bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
@@ -390,7 +390,7 @@ datos_pautocorrelacion_trans |>
   theme_bw()
 ```
 
-Luego de transformar a la serie, se realizó la @fig-serie5 que contiene un resúmen acerca del comportamiento de la serie. Notando, que ahora en el gráfico (b) se puede observar que la variabilidad parece ser un poco más constante año a año.
+Luego de transformar a la serie, se realizó la @fig-serie5 que contiene un resúmen acerca del comportamiento de la serie. Notando, que ahora en la Figura (5b) se puede observar que la variabilidad parece ser un poco más constante año a año.
 
 ```{r tendencia de la serie transformada, eval=FALSE}
 tabla_promedios <- datos_empresa_transformados |>
@@ -492,8 +492,8 @@ datos_pautocorrelacion_dif |>
   theme_bw()
 ```
 
-En la @fig-serie6 se observa, el gráfico de la serie diferenciada en la parte estacional y sus respectivas funciones de autocorrelación muestral y de autocorrelación parcial muestral. En el gráfico (a) se puede observar que la serie parece ser estacionaria, dado que varia de manera oscilante sobre un valor constante. 
-Luego para realizar la identificación de los posibles modelos que se pueden ajustar a esta serie, utilizaremos los gráficos (b) y (c). En el gráfico de la FACM se puede observar que 2 rezagos son significativos, y el tercer rezago está en el límite de ser significativo, viendo la parte estacional parece que los rezagos 12, 24 y 36 son significativos, persentando un decrecimiento exponencial. En el gráfico de la FACPM se puede observar que solo los primeros 2 rezagos son significativos, y el rezago 12 correspondiente a la parte estacional, parece estar al límite de ser significativo.
+En la @fig-serie6 se observa, el gráfico de la serie diferenciada en la parte estacional y sus respectivas funciones de autocorrelación muestral y de autocorrelación parcial muestral. En la Figura (6a) se puede observar que la serie parece ser estacionaria, dado que varia de manera oscilante sobre un valor constante. 
+Luego para realizar la identificación de los posibles modelos que se pueden ajustar a esta serie, utilizaremos las Figuras (6b) y (6c). En el gráfico de la FACM se puede observar que 2 rezagos son significativos y el tercer rezago está en el límite de ser significativo, viendo la parte estacional parece que los rezagos 12, 24 y 36 son significativos, persentando un decrecimiento exponencial. En el gráfico de la FACPM se puede observar que solo los primeros 2 rezagos son significativos, y el rezago 12 correspondiente a la parte estacional, parece estar al límite de ser significativo.
 
 \newpage
 
@@ -502,7 +502,7 @@ Por lo que teniendo esto en cuenta, planteamos los siguientes modelos que se pue
 - Modelo 1: $SARIMA(0,0,3)(1,1,0)_{12}$
 - Modelo 2: $SARIMA(0,0,2)(1,1,0)_{12}$
 - Modelo 3: $SARIMA(2,0,0)(1,1,0)_{12}$
-
+- Modelo 4: $SARIMA(1,0,0)(0,1,1)_{12}$, selección del modelo de forma automática 
 
 ```{r tsibble}
 datos_diferencia_2 <- datos_diferencia |> 
@@ -558,14 +558,14 @@ m_prop_2.1 <- arima(datos_diferencia_2$ln_y, order = c(1,0,0), seasonal = list(o
 
 Se puede observar, que los modelos con menor $AIC$ son:
 
-1. $SARIMA(2,0,0)(1,1,0)_{12}$
-2. $SARIMA(1,0,0)(0,1,1)_{12}$
+- Modelo 3 $SARIMA(2,0,0)(1,1,0)_{12}$
+- Modelo 4 $SARIMA(1,0,0)(0,1,1)_{12}$
 
-El modelo 1 tiene 3 parámetros de los cuáles $\phi_2$ no es significativo, por lo que a dicho modelo le sacamos un parámetro en la parte regular. Por lo que el cambiamos el modelo 1 por un modelo $SARIMA(1,0,0)(1,1,0)_{12}$. Con respecto al modelo 2, sus dos parámetros son significativos, teniendo además una estimación de $\hat\sigma^2$ menor que la del modelo 1. De igual manera, seguiré con los modelos, definiendo cuál usaré para la predicción, aquél que tenga una mejor capacidad predictiva, teniendo en cuenta la verificación de los supuestos de los mismos.
+El modelo 3 tiene 3 parámetros de los cuáles $\phi_2$ no es significativo, se puede observar esto en la tabla 4 del anexo. Por esta razón, se elimina un parámetro en la parte regular del modelo. Así, el Modelo 3 se reemplaza por un modelo $SARIMA(1,0,0)(1,1,0)_{12}$. Con respecto al modelo 4, sus dos parámetros son significativos, teniendo además una estimación de $\hat\sigma^2$ menor que la del modelo 3. Del mismo modo, continuaré trabajando con ambos modelos y decidiré cuál utilizar para la predicción, eligiendo aquel que demuestre una mejor capacidad predictiva, teniendo en cuenta la verificación de los supuestos de los mismos.
 
 ## Evaluación de los supuestos de los modelos
 
-Esta instancia se centra en la verificación de los supuestos de ambos modelos mencionados anteriormente. Se hará un análisis exhaustivo para el modelo $SARIMA(1,0,0)(0,1,1)_{12}$, mientras que para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$, al ser un procedimiento análogo, se dejarán en el anexo la @fig-serie-anexo.
+Esta instancia se centra en la verificación de los supuestos de ambos modelos mencionados anteriormente. Se hará un análisis exhaustivo para el modelo $SARIMA(1,0,0)(0,1,1)_{12}$, mientras que para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$, al ser un procedimiento análogo, se dejarán en el anexo, en la @fig-serie-anexo.
 
 ```{r chequeo de los supuestos}
 m_propuesto <- augment(ajustes2) |>
@@ -647,7 +647,7 @@ datos_pautocorrelacion_auto |>
 
 ```
 
-En la @fig-serie7 se puede observar en los gráficos (a) y (b) que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y parecen tener una variancia constante. También se puede apreciar, en el gráfico (b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en los gráficos (c) y (d), da la impresión de que los residuos son incorrelados, en la tabla 4 que se encuentra en el anexo, se incluye el test de Ljung-Box para comprobar que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
+En la parte (a) y (b) de la @fig-serie7 se puede observar que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y parecen tener una variancia constante. También se puede apreciar, en la Figura (7b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en las Figuras (7c) y (7d), da la impresión de que los residuos son incorrelados, en la tabla 5 que se encuentra en el anexo, se incluye el test de Ljung-Box para comprobar que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
 
 Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior, se puede observar en la @fig-serie-anexo.
 
@@ -729,15 +729,15 @@ predicciones |>
 
 \newpage
 
-En la @fig-serie8 se pueden observar las predicciones realizadas utilizando el modelo seleccionado anteriormente, en el gráfico (b) se puede ver una comparación entre el valor real (línea negra) y las predicciones realizadas (línea azul), observando que los valores reales en su mayoría se encuentran dentro del intervalo de predicción. Lo que sucede en agosto es que la empresa a la que se le analizaron los datos tuvo una decaída en las ventas sujeto a un problema en las bonificaciones por falta de presupuesto.
-
+En la @fig-serie8 se pueden observar las predicciones realizadas utilizando el modelo seleccionado anteriormente, en la Figura (8b) se puede ver una comparación entre el valor real (línea negra) y las predicciones realizadas (línea azul), observando que los valores reales en su mayoría se encuentran dentro del intervalo de predicción. Lo que sucede en agosto es que la empresa a la que se le analizaron los datos tuvo una decaída en las ventas sujeto a un problema en las bonificaciones por falta de presupuesto.
 
 ## Conclusión
 
-El análisis de las ventas mensuales reveló un comportamiento estacional sin tendencias a través de los años, el cuál no tiene mayores inconvenientes además de que la variancia no es constante en el tiempo y el outlier encontrado en el año 2020, sujeto al escenario atípico que se vivió en dicho año. En base a esto se ajusto un modelo SARIMA no muy complicado, con una diferencia en la parte estacional, una parte autorregresiva de primer órden en la parte regular y una parte promedio móvil de primer orden en la parte estacional, el cuál satisface todos los supuestos teóricos.
+El análisis de las ventas mensuales reveló un comportamiento estacional sin tendencias a través de los años, el cuál no tiene mayores inconvenientes además de que la variancia no es constante en el tiempo y el outlier encontrado en el año 2020, sujeto al escenario atípico que se vivió en dicho año. En base a esto, se ajusto un modelo SARIMA no muy complicado con una diferencia en la parte estacional, una parte autorregresiva de primer órden en la parte regular y una parte promedio móvil de primer orden en la parte estacional, el cuál satisface todos los supuestos teóricos.
 
-Luego, en la parte de los resultados se vió que el modelo ajustado tenía un *MAPE* del 14.4% aproximadamente, lo cuál significa que el error promedio de los pronósticos se desvían un 14.4% respecto a las unidades vendidas reales, lo cuál es aceptable pero lo ideal sería un error más chico. 
-Por último, tener en cuenta el pronóstico de agosto del año 2024, dado que en dicho mes hubo un problema con las bonificaciones en la empresa por falta de presupuesto, lo cuál esto puede modificar el desempeño del modelo y tal vez el error obtenido sería inferior a lo que se obtuvo.
+Luego, en la parte de los resultados se vió que el modelo ajustado tenía un *MAPE* del 14.4% aproximadamente, lo cuál significa que el error promedio de los pronósticos se desvían un 14.4% respecto a las unidades vendidas reales, lo cuál es aceptable pero lo ideal sería un error más pequeño. 
+
+Por último, es importante considerar el pronóstico para agosto de 2024, ya que durante ese mes ocurrió un problema con las bonificaciones en la empresa debido a la falta de presupuesto. Este factor podría influir en el desempeño del modelo, y es posible que el error estimado sea menor al observado.
 
 
 \newpage
@@ -745,6 +745,59 @@ Por último, tener en cuenta el pronóstico de agosto del año 2024, dado que en
 ## Anexo
 
 Todo el código con el cuál se desarrollo el trabajo práctico se encuentra en mi repostiorio de Github, al cuál se puede acceder haciendo [click aquí](https://github.com/Franco-Santini/TP_series).
+
+```{r data frame para las estimaciones}
+data_estimaciones1 <- data.frame(
+  parametros = c("$\\phi_1$", "$\\phi_2$", "$\\Phi_1$"),
+  estimacion = c(m_prop_2$coef),
+  desvio = c(sqrt(diag(m_prop_2$var.coef))),
+  estadistica = c((m_prop_2$coef/sqrt(diag(m_prop_2$var.coef)))^2)
+) |> 
+  mutate(p.value = ifelse(pchisq(estadistica, df = 1, lower.tail = F) < 0.0001, "<0.0001", round(pchisq(estadistica, df = 1, lower.tail = F), 5)))
+
+data_estimaciones2 <- data.frame(
+  parametros = c("$\\phi_1$", "$\\Phi_1$"),
+  estimacion = c(m_prop_2.1$coef),
+  desvio = c(sqrt(diag(m_prop_2.1$var.coef))),
+  estadistica = c((m_prop_2.1$coef/sqrt(diag(m_prop_2.1$var.coef)))^2)
+) |> 
+  mutate(p.value = ifelse(pchisq(estadistica, df = 1, lower.tail = F) < 0.0001, "<0.0001", round(pchisq(estadistica, df = 1, lower.tail = F), 5)))
+
+data_estimaciones3 <- data.frame(
+  parametros = c("$\\phi_1$", "$\\Theta_1$"),
+  estimacion = c(m_auto_2$coef),
+  desvio = c(sqrt(diag(m_auto_2$var.coef))),
+  estadistica = c((m_auto_2$coef/sqrt(diag(m_auto_2$var.coef)))^2)
+) |> 
+  mutate(p.value = ifelse(pchisq(estadistica, df = 1, lower.tail = F) < 0.0001, "<0.0001", round(pchisq(estadistica, df = 1, lower.tail = F), 5)))
+```
+
+
+```{r tabla estimaciones de los parámetros}
+#| tbl-cap: "Estimación de los parámetros y su significación estadística"
+#| tbl-subcap: 
+#|   - "Modelo $SARIMA(2,0,0)(1,1,0)_{12}$"
+#|   - "Modelo $SARIMA(1,0,0)(1,1,0)_{12}$"
+#|   - "Modelo $SARIMA(1,0,0)(0,1,1)_{12}$"
+#| layout-nrow: 3
+
+
+data_estimaciones1 |>
+  `rownames<-`(NULL) |> 
+  `colnames<-`(c("Parámetro", "Estimación", "Desvío", "Estadística", "P-Value")) |> 
+  kable(digits = 4)
+
+data_estimaciones2 |>
+  `rownames<-`(NULL) |> 
+  `colnames<-`(c("Parámetro", "Estimación", "Desvío", "Estadística", "P-Value")) |> 
+  kable(digits = 4)
+
+data_estimaciones3 |>
+  `rownames<-`(NULL) |> 
+  `colnames<-`(c("Parámetro", "Estimación", "Desvío", "Estadística", "P-Value")) |> 
+  kable(digits = 4)
+```
+
 
 ```{r data frame para los graficos 2}
 acf_prop <- acf(m_propuesto$.innov, lag.max = 61, plot = F)
@@ -765,6 +818,13 @@ datos_pautocorrelacion_prop <- data.frame(
 # Tabla cada 6 rezagos
 ljung_box_auto <- data.frame(
   rezago = c(6, 12, 18, 24, 30, 36),
+  estadistica = c(ljung_box(m_auto$.innov, lag = 6, dof = 2)[1],
+           ljung_box(m_auto$.innov, lag = 12, dof = 2)[1],
+           ljung_box(m_auto$.innov, lag = 18, dof = 2)[1],
+           ljung_box(m_auto$.innov, lag = 24, dof = 2)[1],
+           ljung_box(m_auto$.innov, lag = 30, dof = 2)[1],
+           ljung_box(m_auto$.innov, lag = 36, dof = 2)[1]),
+  grados_libertad = c(6-2, 12-2, 18-2, 24-2, 30-2, 36-2),
   test = c(ljung_box(m_auto$.innov, lag = 6, dof = 2)[2],
            ljung_box(m_auto$.innov, lag = 12, dof = 2)[2],
            ljung_box(m_auto$.innov, lag = 18, dof = 2)[2],
@@ -775,12 +835,19 @@ ljung_box_auto <- data.frame(
 
 ljung_box_prop <- data.frame(
   rezago = c(6, 12, 18, 24, 30, 36),
-  test = c(ljung_box(m_propuesto$.innov, lag = 6, dof = 2)[2],
-           ljung_box(m_propuesto$.innov, lag = 12, dof = 2)[2],
-           ljung_box(m_propuesto$.innov, lag = 18, dof = 2)[2],
-           ljung_box(m_propuesto$.innov, lag = 24, dof = 2)[2],
-           ljung_box(m_propuesto$.innov, lag = 30, dof = 2)[2],
-           ljung_box(m_propuesto$.innov, lag = 36, dof = 2)[2])
+  estadistica = c(ljung_box(m_propuesto$.innov, lag = 6, dof = 2, fit_df = 2)[1],
+           ljung_box(m_propuesto$.innov, lag = 12, dof = 2, fit_df = 2)[1],
+           ljung_box(m_propuesto$.innov, lag = 18, dof = 2, fit_df = 2)[1],
+           ljung_box(m_propuesto$.innov, lag = 24, dof = 2, fit_df = 2)[1],
+           ljung_box(m_propuesto$.innov, lag = 30, dof = 2, fit_df = 2)[1],
+           ljung_box(m_propuesto$.innov, lag = 36, dof = 2, fit_df = 2)[1]),
+  grados_libertad = c(6-2, 12-2, 18-2, 24-2, 30-2, 36-2),
+  test = c(ljung_box(m_propuesto$.innov, lag = 6, dof = 2, fit_df = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 12, dof = 2, fit_df = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 18, dof = 2, fit_df = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 24, dof = 2, fit_df = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 30, dof = 2, fit_df = 2)[2],
+           ljung_box(m_propuesto$.innov, lag = 36, dof = 2, fit_df = 2)[2])
 )
 ```
 
@@ -792,14 +859,15 @@ ljung_box_prop <- data.frame(
 #| layout-ncol: 2
 
 ljung_box_auto |> 
-    `colnames<-`(c("Rezago", "P-value")) |> 
+    `colnames<-`(c("Rezago", "Estadística", "G.L", "P-value")) |> 
     kable(digits = 4)
 
 ljung_box_prop |> 
-    `colnames<-`(c("Rezago", "P-value")) |> 
+    `colnames<-`(c("Rezago", "Estadística", "G.L", "P-value")) |> 
     kable(digits = 4)
 ```
 
+\newpage 
 
 ```{r residuos auto graficos 2}
 #| label: fig-serie-anexo
@@ -855,7 +923,6 @@ datos_pautocorrelacion_prop |>
   theme_bw()
 
 ```
-
 
 
 \newpage
