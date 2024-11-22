@@ -87,17 +87,15 @@ library(ggrepel) # Texto en el gráfico estacional
 
 # Introducción
 
-En este trabajo se busca estudiar las unidades vendidas (bebidas con y sin alcohol) en Hectolitro^[Unidad de volúmen equivalente a 100 litros.] (HL) de una importante empresa de logística en la ciudad de Casilda, Santa Fe. El estudio se realiza con 80 observaciones, medidas mensualmente en el período (01/01/2018 - 31/08/2024).
+En este trabajo se busca estudiar las unidades vendidas (bebidas con y sin alcohol) en hectolitros^[Unidad de volúmen equivalente a 100 litros.] (HL) de una importante empresa de logística en la ciudad de Casilda, Santa Fe. El estudio incluye 80 observaciones, medidas mensualmente durante el período comprendido entre el 1 de enero de 2018 y el 31 de agosto de 2024.
 
-
-
-Cabe aclarar que en el período de estudio, atravesamos un evento muy catastrófico en todas las áreas, particularmente en el sector de logística, la pandemia del COVID-19. Al afectar principalmente a las personas, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia de COVID-19. Debido a esta medida, a fines de marzo del 2020 - principios de abril del 2020, el sector de logística fue afectado y en general se produjo una caída en las ventas con respecto al año anterior.
+Es importante señalar que, durante el período de estudio, se atravesó un evento catastrófico que afectó a diversas áreas, particularmente al sector logístico: la pandemia de COVID-19. Ante el impacto en la población, Argentina implementó el Aislamiento Social, Preventivo y Obligatorio (ASPO) como medida para combatir la pandemia. Esta disposición, vigente desde fines de marzo - principios de abril de 2020, afectó significativamente al sector logístico, lo que resultó en una caída generalizada de las ventas en comparación con el año anterior.
  
-Teniendo esto en cuenta, resulta de interés pronosticar a futuro las unidades vendidas en (HL) de la empresa, mediante modelos de *series de tiempo*.
+Considerando estos antecedentes, resulta de interés pronosticar las unidades vendidas en hectolitros (HL) de la empresa para períodos futuros, utilizando modelos de *series de tiempo*.
 
 ## Análisis descriptivo
 
-En primera instancia, comenzamos con el gráfico de la serie para observar el comportamiento de las ventas a través del período en estudio.
+En primera instancia, se presenta el gráfico de la serie temporal para analizar el comportamiento de las ventas a lo largo del período de estudio.
 
 ```{r carga datos 2}
 datos2 <- read_excel("Datos/empresa_casilda.xlsx")
@@ -167,7 +165,7 @@ datos_empresa_1 |>
     legend.position = "none"
   )
 ```
-La @fig-serie2 podemos observar que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
+Se puede interpretar en la @fig-serie2 que claramente hay un comportamiento estacional de las unidades vendidas, pero se descarta cualquier tipo de tendencia creciente o decreciente de las mismas, dado que no se observa ni un crecimiento, ni un decrecimiento año a año de las unidades vendidas mensuales. 
 
 ```{r grafico autocorrelacion 1}
 autocorrelacion_2 <- acf(datos_empresa_1$Cantidad_total_HL, lag.max = 80, plot = F)
@@ -223,9 +221,9 @@ datos_pautocorrelacion |>
   theme_bw()
 ```
 
-De acuerdo con lo mostrado en @fig-serie3, se puede observar que la FACM tiene un decrecimiento lento y sinusoidal, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM no parece tener un patrón claro.
+De acuerdo con lo mostrado en la @fig-serie3, se puede observar que la FACM tiene un decrecimiento lento y sinusoidal, notando también que en los rezagos 12, 24, 36 y 48 son significativos esto da un indicio de que la serie tiene un comportamiento estacional, mientras que la FACPM no parece tener un patrón claro.
 
-### Analisis de dispersion
+### Análisis de dispersión
 
 ```{r boxplot por año 2}
 #| fig-cap: "Boxplots de las unidades vendidas en (HL) por año"
@@ -244,9 +242,9 @@ datos_empresa_1 |>
 
 ```
 
-Se puede observar en la @fig-serie4 que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en variancia, además se puede apreciar la presencia de outliers en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
+El análisis de la @fig-serie4 revela que la variabilidad no parece ser constante año a año, por lo que puede estar dando una advertencia de que la serie no es estacionaria en variancia, además se puede apreciar algunas observaciones alejadas del resto en los años 2018, 2019, 2021 y 2022. Se excluyó el año 2024 de la @fig-serie4 porque no estaban los datos completos. 
 
-Una vez observados los Boxplots, procederemos a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, determinaremos si es necesario transformar la serie o si puede mantenerse en su forma original. Además, puede ser de utilidad calcular el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, podremos identificar si una transformación de potencia es adecuada para estabilizar la variancia de la serie. Aquel valor de $\lambda$ para el cuál se minimice el coeficiente de variación, será la transformación que tendremos que realizar.
+Una vez observados los Boxplots, se procede a realizar la transformación de Box-Cox. Dependiendo del valor de $\lambda$ obtenido, se determina si es necesario transformar la serie o si puede mantenerse en su forma original. Además, es de utilidad calcular el coeficiente de variación según los valores de $\lambda$ arrojados por la transformación de Box-Cox, de esta manera, se podrá identificar si una transformación de potencia es adecuada para estabilizar la variancia de la serie. Aquel valor de $\lambda$ para el cuál se minimice el coeficiente de variación, será la transformación que tendremos que realizar.
 
 ```{r transformacion box-cox}
 bc_transf <- boxcox(lm(data = datos_empresa_1, Cantidad_total_HL ~ 1), plotit = F)
@@ -305,9 +303,9 @@ bc |>
 
 \newpage
 
-Observando la Tabla 1, el coeficiente de variación mínimo esta asociado a un $\lambda = 0$, por lo que es apropiado aplicar la transformacion $y^{(\lambda)} = ln(y)$. 
+Se observa en la Tabla 1 que el coeficiente de variación mínimo esta asociado a un $\lambda = 0$, por lo que es apropiado aplicar la transformación $y^{(\lambda)} = ln(y)$. 
 
-## Identificación del modelo
+## Identificación de modelos
 
 ```{r datos transformados}
 datos_empresa_transformados <- datos_empresa_1 |> 
@@ -341,7 +339,7 @@ conf.lims2 <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_trans$n.used)
 ```{r descriptivo serie transformada}
 #| label: fig-serie5
 #| layout: [[49, -2 ,49], [49, -2 ,49]]
-#| fig-cap: "Resúmen de la Serie transformada"
+#| fig-cap: "Resumen de la Serie transformada"
 #| fig-subcap: 
 #|   - "Log. natural de las unidades vendidas mensuales en (HL)"
 #|   - "Boxplots del Log. natural de las unidades vendidas en (HL) por año"
@@ -390,7 +388,7 @@ datos_pautocorrelacion_trans |>
   theme_bw()
 ```
 
-Luego de transformar a la serie, se realizó la @fig-serie5 que contiene un resúmen acerca del comportamiento de la serie. Notando, que ahora en la Figura (5b) se puede observar que la variabilidad parece ser un poco más constante año a año.
+Luego de transformar a la serie, se realizó la @fig-serie5 que contiene un resumen acerca del comportamiento de la serie. Notando, que ahora en la Figura (5b) se puede observar que la variabilidad parece ser un poco más constante año a año.
 
 ```{r tendencia de la serie transformada, eval=FALSE}
 tabla_promedios <- datos_empresa_transformados |>
@@ -454,7 +452,7 @@ conf.lims <- c(-1,1)*qnorm((1 + alpha)/2)/sqrt(pautocorrelacion_dif$n.used)
 ```{r graficos de la serie diferenciada}
 #| label: fig-serie6
 #| layout: [[50], [50, 50]]
-#| fig-cap: "Resúmen de la Serie diferenciada en la parte estacional"
+#| fig-cap: "Resumen de la Serie diferenciada en la parte estacional"
 #| fig-subcap: 
 #|   - "Log. natural de las unidades vendidas mensuales en (HL)"
 #|   - "FACM"
@@ -492,12 +490,12 @@ datos_pautocorrelacion_dif |>
   theme_bw()
 ```
 
-En la @fig-serie6 se observa, el gráfico de la serie diferenciada en la parte estacional y sus respectivas funciones de autocorrelación muestral y de autocorrelación parcial muestral. En la Figura (6a) se puede observar que la serie parece ser estacionaria, dado que varia de manera oscilante sobre un valor constante. 
-Luego para realizar la identificación de los posibles modelos que se pueden ajustar a esta serie, utilizaremos las Figuras (6b) y (6c). En el gráfico de la FACM se puede observar que 2 rezagos son significativos y el tercer rezago está en el límite de ser significativo, viendo la parte estacional parece que los rezagos 12, 24 y 36 son significativos, persentando un decrecimiento exponencial. En el gráfico de la FACPM se puede observar que solo los primeros 2 rezagos son significativos, y el rezago 12 correspondiente a la parte estacional, parece estar al límite de ser significativo.
+Se visualiza en la @fig-serie6, el gráfico de la serie diferenciada en la parte estacional y sus respectivas funciones de autocorrelación muestral y de autocorrelación parcial muestral. En la Figura (6a) se puede observar que la serie parece ser estacionaria en media, dado que varía de manera oscilante sobre un valor constante. 
+Luego para realizar la identificación de los posibles modelos que se pueden ajustar a esta serie, se utilizan las Figuras (6b) y (6c). En el gráfico de la FACM se puede observar en la parte regular qué, los dos primeros rezagos son significativos y el tercero está al límite de ser significativo, viendo la parte estacional parece que los rezagos 12, 24 y 36 son significativos, presentando un decrecimiento exponencial. En el gráfico de la FACPM se puede observar que solo los primeros 2 rezagos son significativos, y el rezago 12 correspondiente a la parte estacional, parece estar al límite de ser significativo.
 
 \newpage
 
-Por lo que teniendo esto en cuenta, planteamos los siguientes modelos que se pueden ajustar a nuestra serie: 
+Por lo que teniendo esto en cuenta, se plantea los siguientes modelos que se pueden ajustar a nuestra serie: 
 
 - Modelo 1: $SARIMA(0,0,3)(1,1,0)_{12}$
 - Modelo 2: $SARIMA(0,0,2)(1,1,0)_{12}$
@@ -561,7 +559,7 @@ Se puede observar, que los modelos con menor $AIC$ son:
 - Modelo 3 $SARIMA(2,0,0)(1,1,0)_{12}$
 - Modelo 4 $SARIMA(1,0,0)(0,1,1)_{12}$
 
-El modelo 3 tiene 3 parámetros de los cuáles $\phi_2$ no es significativo, se puede observar esto en la tabla 4 del anexo. Por esta razón, se elimina un parámetro en la parte regular del modelo. Así, el Modelo 3 se reemplaza por un modelo $SARIMA(1,0,0)(1,1,0)_{12}$. Con respecto al modelo 4, sus dos parámetros son significativos, teniendo además una estimación de $\hat\sigma^2$ menor que la del modelo 3. Del mismo modo, continuaré trabajando con ambos modelos y decidiré cuál utilizar para la predicción, eligiendo aquel que demuestre una mejor capacidad predictiva, teniendo en cuenta la verificación de los supuestos de los mismos.
+El modelo 3 tiene 3 parámetros de los cuáles $\phi_2$ no es significativo, se puede observar esto en la tabla 4 del anexo. Por esta razón, se elimina un parámetro en la parte regular del modelo. Así, el Modelo 3 se reemplaza por un modelo $SARIMA(1,0,0)(1,1,0)_{12}$. Con respecto al modelo 4, sus dos parámetros son significativos, teniendo además una estimación de $\hat\sigma^2$ menor que la del modelo 3. Del mismo modo, se analizan ambos modelos para determinar cuál utilizar en las predicciones, seleccionando el que ofrezca una mejor capacidad predictiva, con base en la verificación de sus supuestos.
 
 ## Evaluación de los supuestos de los modelos
 
@@ -647,13 +645,13 @@ datos_pautocorrelacion_auto |>
 
 ```
 
-En la parte (a) y (b) de la @fig-serie7 se puede observar que hay una observación atípica, correspondiente al año 2020, lo cuál se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y parecen tener una variancia constante. También se puede apreciar, en la Figura (7b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en las Figuras (7c) y (7d), da la impresión de que los residuos son incorrelados, en la tabla 5 que se encuentra en el anexo, se incluye el test de Ljung-Box para comprobar que los residuos son incorrelados. Por lo que podemos concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos.
+En la parte (a) y (b) de la @fig-serie7 se puede observar que hay una observación atípica, correspondiente al año 2020, lo cual se puede deber a alguna situación inusual ocurrida en pandemia, además los residuos varían alrededor del cero y parecen tener una variancia constante. También se puede apreciar, en la Figura (7b) que los residuos parecen ser normales, obviamente sin incluir al outlier. Luego en las Figuras (7c) y (7d), da la impresión de que los residuos son incorrelados, en la tabla 5 que se encuentra en el anexo, se incluye el test de Ljung-Box para comprobar que los residuos son incorrelados. Por lo que se puede concluir que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ cumple con los supuestos teóricos.
 
-Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior, se puede observar en la @fig-serie-anexo.
+Para el modelo $SARIMA(1,0,0)(1,1,0)_{12}$ se realizó lo mismo obteniendo resultados análogos al modelo anterior, esto se puede observar en la @fig-serie-anexo.
 
 ## Evaluación de la capacidad predictiva
 
-Dado que los dos modelos mencionados anteriormente satisfacen los supuestos teóricos, la manera de decidir cuál utilizar para realizar las predicciones es en base a la capacidad predictiva que tienen, es decir, nos quedaremos con aquél modelo que tenga menor error de predicción. Para ello haremos uso de varias métricas, haciendo especial énfasis sobre el *MAPE*, dado que es expresado como un porcentaje lo cuál facilita las interpretaciones y las comparaciones.
+Dado que los dos modelos mencionados anteriormente satisfacen los supuestos teóricos, la manera de decidir cuál utilizar para realizar las predicciones es en base a la capacidad predictiva que tienen, es decir, nos quedaremos con aquel modelo que tenga menor error de predicción. Para ello haremos uso de varias métricas, haciendo especial énfasis sobre el *MAPE*, dado que es expresado como un porcentaje lo cual facilita las interpretaciones y las comparaciones.
 
 
 ```{r comparación de la capacidad predictiva 1}
@@ -682,7 +680,7 @@ forecast(ajustes2, h=6) |>
   kable(digits = 4)
 ```
 
-En la tabla 3, se puede verificar que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ tiene todas las medidas de error de pronóstico más bajas, por lo cuál, dicho modelo se utilizará para realizar las predicciones.
+En la tabla 3, se puede verificar que el modelo $SARIMA(1,0,0)(0,1,1)_{12}$ tiene todas las medidas de error de pronóstico más bajas, por lo cual, dicho modelo se utilizará para realizar las predicciones.
 
 ```{r data frame con los datos de la predicción}
 # Predicciones
@@ -733,18 +731,18 @@ En la @fig-serie8 se pueden observar las predicciones realizadas utilizando el m
 
 ## Conclusión
 
-El análisis de las ventas mensuales reveló un comportamiento estacional sin tendencias a través de los años, el cuál no tiene mayores inconvenientes además de que la variancia no es constante en el tiempo y el outlier encontrado en el año 2020, sujeto al escenario atípico que se vivió en dicho año. En base a esto, se ajusto un modelo SARIMA no muy complicado con una diferencia en la parte estacional, una parte autorregresiva de primer órden en la parte regular y una parte promedio móvil de primer orden en la parte estacional, el cuál satisface todos los supuestos teóricos.
+El análisis de las ventas mensuales reveló un comportamiento estacional sin tendencias a través de los años, el cual no tiene mayores inconvenientes además de que la variancia no es constante en el tiempo y el outlier encontrado en el año 2020, sujeto al escenario atípico que se vivió en dicho año. En base a esto, se ajustó un modelo SARIMA no muy complicado con una diferencia en la parte estacional, una parte autorregresiva de primer orden en la parte regular y una parte promedio móvil de primer orden en la parte estacional, el cuál satisface todos los supuestos teóricos.
 
-Luego, en la parte de los resultados se vió que el modelo ajustado tenía un *MAPE* del 14.4% aproximadamente, lo cuál significa que el error promedio de los pronósticos se desvían un 14.4% respecto a las unidades vendidas reales, lo cuál es aceptable pero lo ideal sería un error más pequeño. 
+Luego, en la parte de los resultados se vio que el modelo ajustado tenía un *MAPE* del 14.4% aproximadamente, lo cual significa que el error promedio de los pronósticos se desvían un 14.4% respecto a las unidades vendidas reales, algo que es aceptable pero lo ideal sería un error más pequeño. 
 
-Por último, es importante considerar el pronóstico para agosto de 2024, ya que durante ese mes ocurrió un problema con las bonificaciones en la empresa debido a la falta de presupuesto. Este factor podría influir en el desempeño del modelo, y es posible que el error estimado sea menor al observado.
+Por último, es fundamental tener en cuenta el pronóstico para agosto de 2024, dado que durante ese mes surgió un problema con las bonificaciones en la empresa debido a la falta de presupuesto. Este factor podría haber afectado el desempeño del modelo, lo que sugiere que el error estimado podría ser menor que el observado.
 
 
 \newpage
 
 ## Anexo
 
-Todo el código con el cuál se desarrollo el trabajo práctico se encuentra en mi repostiorio de Github, al cuál se puede acceder haciendo [click aquí](https://github.com/Franco-Santini/TP_series).
+Todo el código con el cuál se desarrolló el trabajo práctico se encuentra en mi repositorio de Github, al cual se puede acceder haciendo [click aquí](https://github.com/Franco-Santini/TP_series).
 
 ```{r data frame para las estimaciones}
 data_estimaciones1 <- data.frame(
@@ -929,8 +927,8 @@ datos_pautocorrelacion_prop |>
 
 ## Bibliografía
 
-- Wei, W.S. (2006). Time Series Analysis: Univariate and Multivariate Methods, 2nd edition
+- Wei, W. S. (2006). *Time series analysis: Univariate and multivariate methods* (2nd ed.). Addison-Wesley.
 
-- Hyndman, R.J., & Athanasopoulos, G. (2021). Forecasting: principles and practice, 3rd edition
+- Hyndman, R. J., & Athanasopoulos, G. (2021). *Forecasting: Principles and practice* (3rd ed.). OTexts.
 
-- Guerrero, V.M. (1993). Time series analysis supported by power transformation
+- Guerrero, V. M. (1993). Time-series analysis supported by power transformations. *Journal of Forecasting, 12*(1), 37–48.
